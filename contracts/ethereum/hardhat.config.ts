@@ -3,9 +3,6 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
-import * as dotenv from "dotenv";
-
-dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -20,40 +17,25 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       chainId: 31337,
+      allowUnlimitedContractSize: true,
     },
     localhost: {
       url: "http://127.0.0.1:8545",
-    },
-    sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-      chainId: 11155111,
-    },
-    mainnet: {
-      url: process.env.MAINNET_RPC_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-      chainId: 1,
+      chainId: 31337,
     },
   },
   gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
+    enabled: false,
     currency: "USD",
-    outputFile: "gas-report.txt",
-    noColors: true,
-  },
-  etherscan: {
-    apiKey: {
-      mainnet: process.env.ETHERSCAN_API_KEY || "",
-      sepolia: process.env.ETHERSCAN_API_KEY || "",
-    },
   },
   paths: {
     sources: "./src",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
+  },
+  mocha: {
+    timeout: 40000,
   },
 };
 
