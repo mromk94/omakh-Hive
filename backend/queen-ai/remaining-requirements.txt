@@ -1,7 +1,7 @@
 # Database
 sqlalchemy==2.0.36
 asyncpg==0.30.0
-alembic==1.14.0
+alembic==1.16.5
 redis==5.0.1
 psycopg[binary]>=3.2.0
 
