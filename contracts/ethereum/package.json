@@ -46,7 +46,7 @@
     "hardhat-gas-reporter": "^1.0.10",
     "prettier": "^3.0.0",
     "prettier-plugin-solidity": "^1.2.0",
-    "solhint": "^4.0.0",
+    "solhint": "^6.0.1",
     "solidity-coverage": "^0.8.16",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.0",
