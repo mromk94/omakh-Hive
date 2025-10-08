@@ -1,0 +1,61 @@
+{
+  "name": "omakh-hive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-Governed Token Economy - Autonomous blockchain ecosystem",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mromk94/omakh-Hive.git"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:contracts": "cd contracts/ethereum && npm run compile:watch",
+    "dev:backend": "cd backend/api-gateway && npm run start:dev",
+    "dev:frontend": "cd frontend/web && npm run dev",
+    "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
+    "build:contracts": "cd contracts/ethereum && npm run compile",
+    "build:backend": "cd backend/api-gateway && npm run build",
+    "build:frontend": "cd frontend/web && npm run build",
+    "test": "npm run test:contracts && npm run test:backend && npm run test:frontend",
+    "test:contracts": "cd contracts/ethereum && npm run test",
+    "test:backend": "cd backend/api-gateway && npm run test",
+    "test:frontend": "cd frontend/web && npm run test",
+    "lint": "npm run lint:contracts && npm run lint:backend && npm run lint:frontend",
+    "lint:contracts": "cd contracts/ethereum && npm run lint",
+    "lint:backend": "cd backend/api-gateway && npm run lint",
+    "lint:frontend": "cd frontend/web && npm run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,sol}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,sol}\"",
+    "clean": "rm -rf node_modules && rm -rf */node_modules && rm -rf */*/node_modules",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "concurrently": "^8.2.1",
+    "eslint": "^8.50.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^14.0.1",
+    "prettier": "^3.0.3",
+    "typescript": "^5.2.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ],
+    "*.sol": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.18.1+sha512.77a884a165cbba2d8d1c19e3b4880eee6d2fcabd0d879121e282196b80042351d5eb3ca0935fa599da1dc51265cc68816ad2bddd2a2de5ea9fdf92adbec7cd34"
+}

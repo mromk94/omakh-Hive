@@ -1,0 +1,154 @@
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  GKE_CLUSTER: omk-hive-production
+  DEPLOYMENT_NAME: omk-hive-production
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Verify version
+        run: |
+          echo "Deploying version: ${{ github.event.release.tag_name || github.event.inputs.version }}"
+      
+      - name: Run security checks
+        run: |
+          echo "Running security checks..."
+          # Add security scanning here
+
+  deploy-contracts:
+    needs: verify-release
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        working-directory: contracts/ethereum
+        run: npm ci
+      
+      - name: Compile contracts
+        working-directory: contracts/ethereum
+        run: npm run compile
+      
+      - name: Deploy to Mainnet
+        working-directory: contracts/ethereum
+        run: npm run deploy:mainnet
+        env:
+          PRIVATE_KEY: ${{ secrets.PRODUCTION_DEPLOYER_PRIVATE_KEY }}
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      
+      - name: Verify contracts
+        working-directory: contracts/ethereum
+        run: npm run verify
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+
+  build-and-push:
+    needs: verify-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+      
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+      
+      - name: Build and Push API Gateway
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }} -f backend/api-gateway/Dockerfile backend/api-gateway
+          docker tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }} ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:latest
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:latest
+      
+      - name: Build and Push Queen AI
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }} -f backend/queen-ai/Dockerfile backend/queen-ai
+          docker tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }} ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:latest
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:latest
+      
+      - name: Build and Push Frontend
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }} -f frontend/web/Dockerfile frontend/web
+          docker tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }} ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:latest
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:latest
+
+  deploy-to-gke:
+    needs: [deploy-contracts, build-and-push]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GCP_REGION }}
+      
+      - name: Deploy to GKE (Blue-Green)
+        run: |
+          # Deploy new version
+          kubectl set image deployment/api-gateway api-gateway=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }} -n production
+          kubectl set image deployment/queen-ai queen-ai=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }} -n production
+          kubectl set image deployment/frontend frontend=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }} -n production
+      
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/api-gateway -n production --timeout=10m
+          kubectl rollout status deployment/queen-ai -n production --timeout=10m
+          kubectl rollout status deployment/frontend -n production --timeout=10m
+      
+      - name: Health checks
+        run: |
+          # Add health check verification
+          echo "Running health checks..."
+      
+      - name: Smoke tests
+        run: |
+          # Add smoke tests
+          echo "Running smoke tests..."
+      
+      - name: Notify success
+        if: success()
+        run: echo "Production deployment successful!"
+      
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          kubectl rollout undo deployment/api-gateway -n production
+          kubectl rollout undo deployment/queen-ai -n production
+          kubectl rollout undo deployment/frontend -n production

@@ -1,0 +1,38 @@
+version: '3.9'
+
+# Development-specific overrides
+services:
+  api-gateway:
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+    volumes:
+      - ./backend/api-gateway:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Debug port
+    command: npm run start:debug
+
+  queen-ai:
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      LOG_LEVEL: debug
+    volumes:
+      - ./backend/queen-ai:/app
+      - /app/.venv
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./frontend/web:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3001:3000"
+    command: npm run dev

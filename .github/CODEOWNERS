@@ -1,0 +1,30 @@
+# CODEOWNERS file for OMK Hive
+# These owners will be the default owners for everything in the repo
+# They will be requested for review when someone opens a pull request
+
+# Global owners
+* @mromk94
+
+# Smart Contracts
+/contracts/** @mromk94
+
+# Backend
+/backend/** @mromk94
+
+# Frontend
+/frontend/** @mromk94
+
+# Infrastructure
+/infrastructure/** @mromk94
+
+# Documentation
+/docs/** @mromk94
+*.md @mromk94
+
+# CI/CD
+/.github/** @mromk94
+
+# Configuration files
+*.json @mromk94
+*.yml @mromk94
+*.yaml @mromk94

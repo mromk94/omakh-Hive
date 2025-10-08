@@ -1,0 +1,75 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop, staging]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test-api-gateway:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: omk_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/api-gateway/package-lock.json'
+      
+      - name: Install dependencies
+        working-directory: backend/api-gateway
+        run: npm ci
+      
+      - name: Lint
+        working-directory: backend/api-gateway
+        run: npm run lint
+      
+      - name: Type check
+        working-directory: backend/api-gateway
+        run: npm run build
+      
+      - name: Run tests
+        working-directory: backend/api-gateway
+        run: npm run test:cov
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/omk_test
+          REDIS_URL: redis://localhost:6379
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/api-gateway/coverage/lcov.info
+          flags: backend

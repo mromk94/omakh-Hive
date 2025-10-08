@@ -1,0 +1,23 @@
+# Development Dockerfile for API Gateway
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev)
+RUN npm install
+
+# Copy source
+COPY . .
+
+# Expose port and debug port
+EXPOSE 3000 9229
+
+# Start in development mode with hot reload
+CMD ["npm", "run", "start:dev"]

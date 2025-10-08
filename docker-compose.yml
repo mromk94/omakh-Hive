@@ -1,0 +1,119 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: omk-postgres
+    environment:
+      POSTGRES_DB: omk_hive
+      POSTGRES_USER: omk_user
+      POSTGRES_PASSWORD: omk_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omk_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: omk-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: omk-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: omk-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile.dev
+    container_name: omk-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://omk_user:omk_password@postgres:5432/omk_hive
+      REDIS_URL: redis://redis:6379
+      QUEEN_AI_URL: http://queen-ai:8000
+    volumes:
+      - ./backend/api-gateway:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+    command: npm run start:dev
+
+  queen-ai:
+    build:
+      context: ./backend/queen-ai
+      dockerfile: Dockerfile.dev
+    container_name: omk-queen-ai
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql://omk_user:omk_password@postgres:5432/omk_hive
+      REDIS_URL: redis://redis:6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - ./backend/queen-ai:/app
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile.dev
+    container_name: omk-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    volumes:
+      - ./frontend/web:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: omk-network

@@ -1,0 +1,104 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  GKE_CLUSTER: omk-hive-staging
+  DEPLOYMENT_NAME: omk-hive-staging
+
+jobs:
+  deploy-contracts:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy-contracts]')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        working-directory: contracts/ethereum
+        run: npm ci
+      
+      - name: Compile contracts
+        working-directory: contracts/ethereum
+        run: npm run compile
+      
+      - name: Deploy to Sepolia
+        working-directory: contracts/ethereum
+        run: npm run deploy:sepolia
+        env:
+          PRIVATE_KEY: ${{ secrets.STAGING_DEPLOYER_PRIVATE_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+      
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+      
+      - name: Build and Push API Gateway
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }} -f backend/api-gateway/Dockerfile backend/api-gateway
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }}
+      
+      - name: Build and Push Queen AI
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }} -f backend/queen-ai/Dockerfile backend/queen-ai
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }}
+      
+      - name: Build and Push Frontend
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }} -f frontend/web/Dockerfile frontend/web
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }}
+
+  deploy-to-gke:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GCP_REGION }}
+      
+      - name: Deploy to GKE
+        run: |
+          kubectl set image deployment/api-gateway api-gateway=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/api-gateway:${{ github.sha }} -n staging
+          kubectl set image deployment/queen-ai queen-ai=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/queen-ai:${{ github.sha }} -n staging
+          kubectl set image deployment/frontend frontend=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/omk-hive/frontend:${{ github.sha }} -n staging
+      
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/api-gateway -n staging
+          kubectl rollout status deployment/queen-ai -n staging
+          kubectl rollout status deployment/frontend -n staging
+      
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n staging
+          kubectl get services -n staging

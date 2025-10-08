@@ -1,0 +1,4 @@
+packages:
+  - 'contracts/ethereum'
+  - 'backend/api-gateway'
+  - 'frontend/web'
