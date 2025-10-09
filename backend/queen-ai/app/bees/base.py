@@ -41,6 +41,9 @@ class BaseBee(ABC):
         # LLM Integration (optional - for bees that need reasoning)
         self.llm_enabled = llm_enabled
         self.llm = None  # Will be set by BeeManager if LLM enabled
+        
+        # Elastic Search Integration (for activity logging)
+        self.elastic = None  # Will be set by BeeManager if Elastic enabled
     
     def set_llm(self, llm_abstraction):
         """
@@ -135,6 +138,21 @@ class BaseBee(ABC):
                        success=result.get("success", True),
                        response_time=response_time)
             
+            # Log to Elastic Search if available
+            if self.elastic:
+                try:
+                    await self.elastic.log_bee_activity(
+                        bee_name=self.name,
+                        action=task_data.get("type", "unknown"),
+                        data=task_data,
+                        result=result,
+                        success=result.get("success", True),
+                        duration_ms=response_time * 1000,
+                        tags=[self.name, task_data.get("type", "unknown")]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log to Elastic: {str(e)}")
+            
             return result
             
         except Exception as e:
@@ -146,13 +164,32 @@ class BaseBee(ABC):
                         error=str(e),
                         exc_info=True)
             
-            return {
+            error_result = {
                 "success": False,
                 "error": str(e),
                 "bee_id": self.bee_id,
                 "bee_name": self.name,
                 "timestamp": datetime.utcnow().isoformat(),
             }
+            
+            # Log error to Elastic Search if available
+            if self.elastic:
+                try:
+                    response_time = (datetime.utcnow() - start_time).total_seconds()
+                    await self.elastic.log_bee_activity(
+                        bee_name=self.name,
+                        action=task_data.get("type", "unknown"),
+                        data=task_data,
+                        result=error_result,
+                        success=False,
+                        error=str(e),
+                        duration_ms=response_time * 1000,
+                        tags=[self.name, "error", task_data.get("type", "unknown")]
+                    )
+                except Exception as log_error:
+                    logger.warning(f"Failed to log error to Elastic: {str(log_error)}")
+            
+            return error_result
     
     async def health_check(self) -> Dict[str, Any]:
         """Check bee health status"""

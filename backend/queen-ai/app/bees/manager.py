@@ -21,6 +21,7 @@ from app.bees.private_sale_bee import PrivateSaleBee
 from app.bees.governance_bee import GovernanceBee
 from app.bees.visualization_bee import VisualizationBee
 from app.bees.bridge_bee import BridgeBee
+from app.integrations.elastic_search import ElasticSearchIntegration
 
 logger = structlog.get_logger(__name__)
 
@@ -37,10 +38,11 @@ class BeeManager:
     - Handle bee failures
     """
     
-    def __init__(self, llm_abstraction=None):
+    def __init__(self, llm_abstraction=None, elastic_search=None):
         self.bees: Dict[str, BaseBee] = {}
         self.initialized = False
         self.llm = llm_abstraction  # LLM abstraction for bees that need it
+        self.elastic = elastic_search  # Elastic Search for activity logging
     
     async def initialize(self):
         """Initialize all bee agents"""
@@ -114,6 +116,23 @@ class BeeManager:
             else:
                 logger.warning("⚠️  LLM not provided - bees running without AI reasoning")
             
+            # Provide Elastic Search access to all bees for activity logging
+            if self.elastic:
+                # Initialize Elastic indices
+                await self.elastic.initialize()
+                
+                # Enable for all bees
+                for bee_name, bee in self.bees.items():
+                    bee.elastic = self.elastic
+                
+                logger.info(f"🔍 Elastic Search enabled for all {len(self.bees)} bees")
+            else:
+                logger.warning("⚠️  Elastic Search not provided - activity logging disabled")
+            
+            # Wire bee connections for coordinated operations
+            await self._wire_bee_connections()
+            logger.info("🔗 Bee connections wired")
+            
             self.initialized = True
             logger.info(f"🎉 Hive initialized with {len(self.bees)} specialized bees")
             logger.info(f"   Core: Maths, Security, Data, Treasury")
@@ -128,6 +147,45 @@ class BeeManager:
         except Exception as e:
             logger.error("Failed to initialize bees", error=str(e))
             raise
+    
+    async def _wire_bee_connections(self):
+        """
+        Wire connections between bees for coordinated operations
+        
+        Hierarchy:
+        Queen AI
+          ↓
+        LiquiditySentinelBee (coordinates liquidity & price monitoring)
+          ↓
+        BlockchainBee (executes on DEX via routers & gets prices from oracles)
+          ↓
+        DEX Routers (Uniswap, Raydium) + Price Oracles (Chainlink, Pyth)
+        """
+        try:
+            # Connect LiquiditySentinelBee to BlockchainBee
+            if "liquidity_sentinel" in self.bees and "blockchain" in self.bees:
+                self.bees["liquidity_sentinel"].set_blockchain_bee(self.bees["blockchain"])
+                logger.info("✅ LiquiditySentinelBee → BlockchainBee connection established")
+            
+            # Connect LiquiditySentinelBee to PatternBee (for ML predictions)
+            if "liquidity_sentinel" in self.bees and "pattern" in self.bees:
+                self.bees["liquidity_sentinel"].set_pattern_bee(self.bees["pattern"])
+                logger.info("✅ LiquiditySentinelBee → PatternBee connection established")
+            
+            # Connect TreasuryBee to BlockchainBee (for balance checks, etc.)
+            if "treasury" in self.bees and "blockchain" in self.bees:
+                # TreasuryBee can query balances via BlockchainBee
+                logger.info("✅ TreasuryBee → BlockchainBee connection available")
+            
+            # Connect BridgeBee to BlockchainBee (already inherent via imports)
+            if "bridge" in self.bees and "blockchain" in self.bees:
+                logger.info("✅ BridgeBee → BlockchainBee connection available")
+            
+            logger.info("🔗 All bee connections wired successfully")
+        
+        except Exception as e:
+            logger.error(f"Failed to wire bee connections: {str(e)}")
+            # Don't raise - connections are optional enhancements
     
     async def execute_bee(self, bee_name: str, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """
