@@ -25,6 +25,7 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
 
     bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
     bytes32 public constant VALIDATOR_ROLE = keccak256("VALIDATOR_ROLE");
+    bytes32 public constant QUEEN_ROLE = keccak256("QUEEN_ROLE");
 
     IERC20 public immutable omkToken;
 
@@ -34,7 +35,7 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
     uint256 public bridgeNonce;
 
     // Rate limiting
-    uint256 public constant MAX_DAILY_BRIDGE = 10_000_000 * 10**18; // 10M per day
+    uint256 public maxDailyBridge = 10_000_000 * 10**18; // 10M per day (adjustable)
     uint256 public dailyBridgeAmount;
     uint256 public lastResetTimestamp;
 
@@ -42,6 +43,34 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
     uint256 public requiredValidations = 2; // Require 2 validator signatures
     mapping(bytes32 => uint256) public validationCount;
     mapping(bytes32 => mapping(address => bool)) public hasValidated;
+
+    // Queen AI Proposal System
+    enum ProposalType {
+        UPDATE_RATE_LIMIT,
+        ADD_RELAYER,
+        REMOVE_RELAYER,
+        ADD_VALIDATOR,
+        REMOVE_VALIDATOR,
+        UPDATE_REQUIRED_VALIDATIONS,
+        PAUSE_BRIDGE,
+        UNPAUSE_BRIDGE
+    }
+
+    struct BridgeProposal {
+        uint256 id;
+        address proposer;
+        ProposalType proposalType;
+        address targetAddress;
+        uint256 newValue;
+        string description;
+        uint256 createdAt;
+        bool approved;
+        bool rejected;
+        bool executed;
+    }
+
+    uint256 public proposalCount;
+    mapping(uint256 => BridgeProposal) public proposals;
 
     // Lock/Release tracking
     struct BridgeTransaction {
@@ -83,20 +112,33 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
     );
     event RelayerUpdated(address indexed oldRelayer, address indexed newRelayer);
     event RateLimitReset(uint256 timestamp);
+    event ProposalCreated(
+        uint256 indexed proposalId,
+        address indexed proposer,
+        ProposalType proposalType,
+        string description
+    );
+    event ProposalApproved(uint256 indexed proposalId, address indexed admin);
+    event ProposalRejected(uint256 indexed proposalId, address indexed admin);
+    event ProposalExecuted(uint256 indexed proposalId);
+    event RateLimitUpdated(uint256 oldLimit, uint256 newLimit);
 
     constructor(
         address _omkToken,
         address _admin,
+        address _queen,
         address[] memory _relayers,
         address[] memory _validators
     ) {
         require(_omkToken != address(0), "OMKBridge: Invalid token");
         require(_admin != address(0), "OMKBridge: Invalid admin");
+        require(_queen != address(0), "OMKBridge: Invalid queen");
 
         omkToken = IERC20(_omkToken);
         lastResetTimestamp = block.timestamp;
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _grantRole(QUEEN_ROLE, _queen);
 
         // Setup relayers
         for (uint256 i = 0; i < _relayers.length; i++) {
@@ -236,17 +278,118 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
         }
 
         require(
-            dailyBridgeAmount + amount <= MAX_DAILY_BRIDGE,
+            dailyBridgeAmount + amount <= maxDailyBridge,
             "OMKBridge: Daily limit exceeded"
         );
 
         dailyBridgeAmount += amount;
     }
 
-    // ============ ADMIN FUNCTIONS ============
+    // ============ QUEEN AI PROPOSAL SYSTEM ============
 
     /**
-     * @notice Add relayer
+     * @notice Queen AI proposes bridge changes
+     */
+    function proposeChange(
+        ProposalType proposalType,
+        address targetAddress,
+        uint256 newValue,
+        string calldata description
+    ) external onlyRole(QUEEN_ROLE) returns (uint256) {
+        uint256 proposalId = proposalCount++;
+
+        BridgeProposal storage proposal = proposals[proposalId];
+        proposal.id = proposalId;
+        proposal.proposer = msg.sender;
+        proposal.proposalType = proposalType;
+        proposal.targetAddress = targetAddress;
+        proposal.newValue = newValue;
+        proposal.description = description;
+        proposal.createdAt = block.timestamp;
+
+        emit ProposalCreated(proposalId, msg.sender, proposalType, description);
+
+        return proposalId;
+    }
+
+    /**
+     * @notice Admin approves Queen's proposal
+     */
+    function approveProposal(uint256 proposalId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        BridgeProposal storage proposal = proposals[proposalId];
+        require(!proposal.approved, "OMKBridge: Already approved");
+        require(!proposal.rejected, "OMKBridge: Already rejected");
+        require(!proposal.executed, "OMKBridge: Already executed");
+
+        proposal.approved = true;
+
+        emit ProposalApproved(proposalId, msg.sender);
+    }
+
+    /**
+     * @notice Admin rejects Queen's proposal
+     */
+    function rejectProposal(uint256 proposalId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        BridgeProposal storage proposal = proposals[proposalId];
+        require(!proposal.approved, "OMKBridge: Already approved");
+        require(!proposal.rejected, "OMKBridge: Already rejected");
+
+        proposal.rejected = true;
+
+        emit ProposalRejected(proposalId, msg.sender);
+    }
+
+    /**
+     * @notice Execute approved proposal
+     */
+    function executeProposal(uint256 proposalId) external nonReentrant {
+        BridgeProposal storage proposal = proposals[proposalId];
+        require(proposal.approved, "OMKBridge: Not approved");
+        require(!proposal.executed, "OMKBridge: Already executed");
+        require(
+            msg.sender == proposal.proposer || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "OMKBridge: Not authorized"
+        );
+
+        proposal.executed = true;
+
+        // Execute based on proposal type
+        if (proposal.proposalType == ProposalType.UPDATE_RATE_LIMIT) {
+            uint256 oldLimit = maxDailyBridge;
+            maxDailyBridge = proposal.newValue;
+            emit RateLimitUpdated(oldLimit, proposal.newValue);
+
+        } else if (proposal.proposalType == ProposalType.ADD_RELAYER) {
+            _grantRole(RELAYER_ROLE, proposal.targetAddress);
+            emit RelayerUpdated(address(0), proposal.targetAddress);
+
+        } else if (proposal.proposalType == ProposalType.REMOVE_RELAYER) {
+            _revokeRole(RELAYER_ROLE, proposal.targetAddress);
+            emit RelayerUpdated(proposal.targetAddress, address(0));
+
+        } else if (proposal.proposalType == ProposalType.ADD_VALIDATOR) {
+            _grantRole(VALIDATOR_ROLE, proposal.targetAddress);
+
+        } else if (proposal.proposalType == ProposalType.REMOVE_VALIDATOR) {
+            _revokeRole(VALIDATOR_ROLE, proposal.targetAddress);
+
+        } else if (proposal.proposalType == ProposalType.UPDATE_REQUIRED_VALIDATIONS) {
+            requiredValidations = proposal.newValue;
+
+        } else if (proposal.proposalType == ProposalType.PAUSE_BRIDGE) {
+            _pause();
+
+        } else if (proposal.proposalType == ProposalType.UNPAUSE_BRIDGE) {
+            _unpause();
+        }
+
+        emit ProposalExecuted(proposalId);
+    }
+
+    // ============ ADMIN DIRECT FUNCTIONS (Emergency Override) ============
+
+    /**
+     * @notice Add relayer (Direct admin action, no proposal needed for emergencies)
      */
     function addRelayer(address relayer) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(relayer != address(0), "OMKBridge: Invalid relayer");
@@ -320,15 +463,58 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
         uint256 _totalLocked,
         uint256 _totalReleased,
         uint256 _bridgeNonce,
+        uint256 _maxDailyBridge,
         uint256 _dailyRemaining,
         uint256 _lockedBalance
     ) {
         _totalLocked = totalLocked;
         _totalReleased = totalReleased;
         _bridgeNonce = bridgeNonce;
-        _dailyRemaining = MAX_DAILY_BRIDGE > dailyBridgeAmount ? 
-            MAX_DAILY_BRIDGE - dailyBridgeAmount : 0;
+        _maxDailyBridge = maxDailyBridge;
+        _dailyRemaining = maxDailyBridge > dailyBridgeAmount ? 
+            maxDailyBridge - dailyBridgeAmount : 0;
         _lockedBalance = omkToken.balanceOf(address(this));
+    }
+
+    /**
+     * @notice Get proposal details
+     */
+    function getProposal(uint256 proposalId) external view returns (
+        address proposer,
+        ProposalType proposalType,
+        address targetAddress,
+        uint256 newValue,
+        string memory description,
+        uint256 createdAt,
+        bool approved,
+        bool rejected,
+        bool executed
+    ) {
+        BridgeProposal storage proposal = proposals[proposalId];
+        return (
+            proposal.proposer,
+            proposal.proposalType,
+            proposal.targetAddress,
+            proposal.newValue,
+            proposal.description,
+            proposal.createdAt,
+            proposal.approved,
+            proposal.rejected,
+            proposal.executed
+        );
+    }
+
+    /**
+     * @notice Get pending proposals count
+     */
+    function getPendingProposalsCount() external view returns (uint256) {
+        uint256 pending = 0;
+        for (uint256 i = 0; i < proposalCount; i++) {
+            if (!proposals[i].approved && !proposals[i].rejected && !proposals[i].executed) {
+                pending++;
+            }
+        }
+        return pending;
     }
 
     /**

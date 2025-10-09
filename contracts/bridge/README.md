@@ -43,7 +43,8 @@ OMKBridge.sol  ←────────→  Bridge Relayer  ←────�
 - ✅ Lock OMK tokens for bridging
 - ✅ Release OMK after Solana burn (with proof)
 - ✅ Multi-signature validation (2+ validators)
-- ✅ Rate limiting (10M OMK/day)
+- ✅ Rate limiting (10M OMK/day - adjustable)
+- ✅ **Queen AI control with admin approval** ⭐
 - ✅ Emergency pause
 - ✅ Proof verification
 
@@ -172,6 +173,97 @@ npm run dev
 pm2 start npm --name "omk-relayer" -- start
 pm2 save
 pm2 startup
+```
+
+---
+
+## 👑 QUEEN AI & ADMIN CONTROL
+
+### Proposal System
+
+The bridge implements a **proposal-approval system** where Queen AI can propose changes and Admin approves them:
+
+#### Queen AI Powers (Propose Only)
+```solidity
+// Queen proposes changes
+function proposeChange(
+    ProposalType proposalType,
+    address targetAddress,
+    uint256 newValue,
+    string description
+) external onlyRole(QUEEN_ROLE) returns (uint256 proposalId)
+```
+
+**What Queen Can Propose**:
+- ✅ Update rate limit (adjust daily bridge capacity)
+- ✅ Add/remove relayers
+- ✅ Add/remove validators
+- ✅ Update required validator count
+- ✅ Pause/unpause bridge
+
+**Flow**:
+1. Queen detects need for change (e.g., high demand → increase rate limit)
+2. Queen calls `proposeChange()` with details
+3. Proposal logged on-chain with ID
+4. Admin reviews proposal
+5. Admin approves or rejects
+6. If approved, Queen or Admin executes
+
+#### Admin Powers (Full Control)
+
+**Approve/Reject**:
+```solidity
+function approveProposal(uint256 proposalId) external onlyRole(DEFAULT_ADMIN_ROLE)
+function rejectProposal(uint256 proposalId) external onlyRole(DEFAULT_ADMIN_ROLE)
+```
+
+**Direct Emergency Actions** (no proposal needed):
+```solidity
+function addRelayer(address relayer) external onlyRole(DEFAULT_ADMIN_ROLE)
+function removeRelayer(address relayer) external onlyRole(DEFAULT_ADMIN_ROLE)
+function pause() external onlyRole(DEFAULT_ADMIN_ROLE)
+function unpause() external onlyRole(DEFAULT_ADMIN_ROLE)
+function emergencyWithdraw(address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE)
+```
+
+### Example: Queen Proposes Rate Limit Increase
+
+```javascript
+// 1. Queen detects high bridge demand
+const currentLimit = await bridge.maxDailyBridge();
+const newLimit = ethers.utils.parseEther("20000000"); // 20M OMK
+
+// 2. Queen proposes increase
+const tx = await bridge.connect(queen).proposeChange(
+    0, // ProposalType.UPDATE_RATE_LIMIT
+    ethers.constants.AddressZero,
+    newLimit,
+    "Increase daily limit to 20M due to high demand"
+);
+const receipt = await tx.wait();
+const proposalId = receipt.events[0].args.proposalId;
+
+// 3. Admin reviews and approves
+await bridge.connect(admin).approveProposal(proposalId);
+
+// 4. Queen or Admin executes
+await bridge.connect(queen).executeProposal(proposalId);
+
+// 5. Rate limit now 20M ✅
+```
+
+### View Pending Proposals
+
+```javascript
+// Get pending proposals count
+const pendingCount = await bridge.getPendingProposalsCount();
+
+// Get proposal details
+const proposal = await bridge.getProposal(proposalId);
+console.log("Proposer:", proposal.proposer);
+console.log("Type:", proposal.proposalType);
+console.log("Approved:", proposal.approved);
+console.log("Executed:", proposal.executed);
 ```
 
 ---
