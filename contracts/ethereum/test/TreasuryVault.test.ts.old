@@ -1,0 +1,322 @@
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
+import { ethers } from "hardhat";
+import { Signer } from "ethers";
+
+describe("TreasuryVault", function () {
+  // We define a fixture to reuse the same setup in every test.
+  async function deployTreasuryFixture() {
+    // Get the ContractFactory and Signers here.
+    const [deployer, admin, approver1, approver2, approver3, receiver, other] = await ethers.getSigners();
+
+    // Deploy a mock ERC20 token for testing
+    const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
+    const token = await ERC20Mock.deploy("Test Token", "TST");
+    
+    // Deploy the TreasuryVault contract
+    const TreasuryVault = await ethers.getContractFactory("TreasuryVault");
+    const approvers = [approver1.address, approver2.address, approver3.address];
+    const treasury = await TreasuryVault.deploy(admin.address, approvers, deployer.address);
+
+    // Grant EMERGENCY_ADMIN_ROLE to deployer
+    await treasury.connect(admin).grantRole(await treasury.EMERGENCY_ADMIN_ROLE(), deployer.address);
+
+    return { 
+      treasury, 
+      token, 
+      deployer, 
+      admin, 
+      approver1, 
+      approver2, 
+      approver3, 
+      receiver, 
+      other,
+      approvers
+    };
+  }
+
+  describe("Deployment", function () {
+    it("Should set the right admin and approvers", async function () {
+      const { treasury, admin, approver1, approver2, approver3 } = await loadFixture(deployTreasuryFixture);
+      
+      // Check admin role
+      expect(await treasury.hasRole(await treasury.DEFAULT_ADMIN_ROLE(), admin.address)).to.be.true;
+      
+      // Check approvers
+      expect(await treasury.isApprover(approver1.address)).to.be.true;
+      expect(await treasury.isApprover(approver2.address)).to.be.true;
+      expect(await treasury.isApprover(approver3.address)).to.be.true;
+      
+      // Check required approvals (should be majority of approvers, which is 2)
+      expect(await treasury.requiredApprovals()).to.equal(2);
+    });
+
+    it("Should set the right withdrawal delay", async function () {
+      const { treasury } = await loadFixture(deployTreasuryFixture);
+      expect(await treasury.withdrawalDelay()).to.equal(24 * 60 * 60); // 24 hours in seconds
+    });
+  });
+
+  describe("Deposits", function () {
+    it("Should accept ETH deposits", async function () {
+      const { treasury, deployer } = await loadFixture(deployTreasuryFixture);
+      const amount = ethers.parseEther("1.0");
+      
+      // Send ETH to the treasury
+      await expect(
+        deployer.sendTransaction({
+          to: await treasury.getAddress(),
+          value: amount
+        })
+      ).to.changeEtherBalances(
+        [deployer.address, await treasury.getAddress()],
+        [ethers.parseEther("-1.0"), ethers.parseEther("1.0")]
+      );
+      
+      // Check the balance
+      expect(await ethers.provider.getBalance(await treasury.getAddress())).to.equal(amount);
+    });
+
+    it("Should accept ERC20 token deposits", async function () {
+      const { treasury, token, deployer } = await loadFixture(deployTreasuryFixture);
+      const amount = ethers.parseEther("1000");
+      
+      // Mint tokens to deployer
+      await token.mint(deployer.address, amount);
+      
+      // Approve the treasury to spend tokens
+      await token.approve(await treasury.getAddress(), amount);
+      
+      // Deposit tokens
+      await expect(treasury.deposit(await token.getAddress(), amount))
+        .to.emit(treasury, "Deposit")
+        .withArgs(await token.getAddress(), deployer.address, amount);
+      
+      // Check the balance
+      expect(await token.balanceOf(await treasury.getAddress())).to.equal(amount);
+    });
+  });
+
+  describe("Withdrawal Process", function () {
+    const ethAmount = ethers.parseEther("1.0");
+    const tokenAmount = ethers.parseEther("1000");
+    let withdrawalId: string;
+
+    async function setupWithdrawal() {
+      const fixture = await loadFixture(deployTreasuryFixture);
+      const { treasury, token, deployer, receiver } = fixture;
+      
+      // Fund the treasury with ETH and tokens
+      await deployer.sendTransaction({
+        to: await treasury.getAddress(),
+        value: ethAmount
+      });
+      
+      await token.mint(deployer.address, tokenAmount);
+      await token.approve(await treasury.getAddress(), tokenAmount);
+      await treasury.deposit(await token.getAddress(), tokenAmount);
+      
+      return { ...fixture };
+    }
+
+    it("Should allow requesting a withdrawal", async function () {
+      const { treasury, receiver, approver1 } = await setupWithdrawal();
+      
+      // Request withdrawal
+      const tx = await treasury.connect(approver1).requestWithdrawal(
+        ethers.ZeroAddress, // ETH
+        receiver.address,
+        ethAmount
+      );
+      
+      const receipt = await tx.wait();
+      const event = receipt?.logs?.find((log: any) => 
+        log.fragment?.name === "WithdrawalRequested"
+      );
+      
+      expect(event).to.not.be.undefined;
+      withdrawalId = event?.args?.withdrawalId;
+      
+      // Check withdrawal status
+      const status = await treasury.getWithdrawalStatus(withdrawalId);
+      expect(status.to).to.equal(receiver.address);
+      expect(status.amount).to.equal(ethAmount);
+      expect(status.approvals).to.equal(1); // Auto-approved by requester
+      expect(status.executed).to.be.false;
+    });
+
+    it("Should require sufficient approvals before execution", async function () {
+      const { treasury, receiver, approver1, approver2 } = await setupWithdrawal();
+      
+      // Request withdrawal
+      const tx = await treasury.connect(approver1).requestWithdrawal(
+        ethers.ZeroAddress, // ETH
+        receiver.address,
+        ethAmount
+      );
+      
+      const receipt = await tx.wait();
+      const event = receipt?.logs?.find((log: any) => 
+        log.fragment?.name === "WithdrawalRequested"
+      );
+      withdrawalId = event?.args?.withdrawalId;
+      
+      // Try to execute before enough approvals
+      await expect(treasury.executeWithdrawal(withdrawalId))
+        .to.be.revertedWith("TreasuryVault: withdrawal not approved");
+      
+      // Second approval
+      await treasury.connect(approver2).approveWithdrawal(withdrawalId);
+      
+      // Now it should have enough approvals but still be in timelock
+      await expect(treasury.executeWithdrawal(withdrawalId))
+        .to.be.revertedWith("TreasuryVault: withdrawal delay not passed");
+    });
+
+    it("Should execute withdrawal after timelock", async function () {
+      const { treasury, token, receiver, approver1, approver2 } = await setupWithdrawal();
+      
+      // Request withdrawal
+      const tx = await treasury.connect(approver1).requestWithdrawal(
+        await token.getAddress(), // ERC20 token
+        receiver.address,
+        tokenAmount
+      );
+      
+      const receipt = await tx.wait();
+      const event = receipt?.logs?.find((log: any) => 
+        log.fragment?.name === "WithdrawalRequested"
+      );
+      withdrawalId = event?.args?.withdrawalId;
+      
+      // Second approval
+      await treasury.connect(approver2).approveWithdrawal(withdrawalId);
+      
+      // Fast forward time to pass the withdrawal delay
+      await time.increase(await treasury.withdrawalDelay() + 1);
+      
+      // Execute withdrawal
+      await expect(treasury.executeWithdrawal(withdrawalId))
+        .to.emit(treasury, "Withdraw")
+        .withArgs(
+          await token.getAddress(),
+          receiver.address,
+          tokenAmount,
+          withdrawalId
+        );
+      
+      // Check balances
+      expect(await token.balanceOf(receiver.address)).to.equal(tokenAmount);
+      
+      // Check withdrawal status
+      const status = await treasury.getWithdrawalStatus(withdrawalId);
+      expect(status.executed).to.be.true;
+    });
+  });
+
+  describe("Security", function () {
+    it("Should not allow non-approvers to approve withdrawals", async function () {
+      const { treasury, other } = await loadFixture(deployTreasuryFixture);
+      
+      await expect(
+        treasury.connect(other).approveWithdrawal(ethers.ZeroHash)
+      ).to.be.reverted;
+    });
+    
+    it("Should not allow double approval", async function () {
+      const { treasury, approver1 } = await loadFixture(deployTreasuryFixture);
+      
+      // This will fail because there's no withdrawal with ZeroHash
+      // but it will first check for the approval status
+      await expect(
+        treasury.connect(approver1).approveWithdrawal(etils.ZeroHash)
+      ).to.be.revertedWith("TreasuryVault: already approved");
+    });
+    
+    it("Should allow emergency shutdown by emergency admin", async function () {
+      const { treasury, deployer } = await loadFixture(deployTreasuryFixture);
+      
+      await expect(treasury.connect(deployer).emergencyShutdown())
+        .to.emit(treasury, "EmergencyShutdown")
+        .withArgs(deployer.address, (value: any) => typeof value === "bigint");
+      
+      expect(await treasury.isActive()).to.be.false;
+    });
+    
+    it("Should not allow operations when not active", async function () {
+      const { treasury, deployer, receiver } = await loadFixture(deployTreasuryFixture);
+      
+      // Shutdown the treasury
+      await treasury.connect(deployer).emergencyShutdown();
+      
+      // Try to deposit
+      await expect(
+        treasury.deposit(ethers.ZeroAddress, 100)
+      ).to.be.revertedWith("TreasuryVault: contract is not active");
+      
+      // Try to request withdrawal
+      await expect(
+        treasury.requestWithdrawal(ethers.ZeroAddress, receiver.address, 100)
+      ).to.be.revertedWith("TreasuryVault: contract is not active");
+    });
+  });
+
+  describe("Admin Functions", function () {
+    it("Should allow adding a new approver", async function () {
+      const { treasury, admin, other } = await loadFixture(deployTreasuryFixture);
+      
+      await expect(treasury.connect(admin).addApprover(other.address))
+        .to.emit(treasury, "RoleGranted")
+        .withArgs(await treasury.APPROVER_ROLE(), other.address, admin.address);
+      
+      expect(await treasury.isApprover(other.address)).to.be.true;
+      expect(await treasury.totalApprovers()).to.equal(4); // 3 initial + 1 new
+    });
+    
+    it("Should allow removing an approver", async function () {
+      const { treasury, admin, approver1 } = await loadFixture(deployTreasuryFixture);
+      
+      await expect(treasury.connect(admin).removeApprover(approver1.address))
+        .to.emit(treasury, "RoleRevoked")
+        .withArgs(await treasury.APPROVER_ROLE(), approver1.address, admin.address);
+      
+      expect(await treasury.isApprover(approver1.address)).to.be.false;
+      expect(await treasury.totalApprovers()).to.equal(2);
+    });
+    
+    it("Should update required approvals when approvers change", async function () {
+      const { treasury, admin, approver1 } = await loadFixture(deployTreasuryFixture);
+      
+      // Initial required approvals (majority of 3 = 2)
+      expect(await treasury.requiredApprovals()).to.equal(2);
+      
+      // Remove an approver (now 2 approvers, majority = 2)
+      await treasury.connect(admin).removeApprover(approver1.address);
+      expect(await treasury.requiredApprovals()).to.equal(2); // Still 2 required
+      
+      // Add a new approver (now 3 approvers, majority = 2)
+      await treasury.connect(admin).addApprover(admin.address);
+      expect(await treasury.requiredApprovals()).to.equal(2); // Still 2 required
+    });
+    
+    it("Should allow updating withdrawal delay", async function () {
+      const { treasury, admin } = await loadFixture(deployTreasuryFixture);
+      const newDelay = 48 * 60 * 60; // 48 hours
+      
+      await expect(treasury.connect(admin).setWithdrawalDelay(newDelay))
+        .to.emit(treasury, "WithdrawalDelayUpdated")
+        .withArgs(newDelay);
+      
+      expect(await treasury.withdrawalDelay()).to.equal(newDelay);
+    });
+    
+    it("Should not allow non-admin to update withdrawal delay", async function () {
+      const { treasury, other } = await loadFixture(deployTreasuryFixture);
+      const newDelay = 48 * 60 * 60; // 48 hours
+      
+      await expect(
+        treasury.connect(other).setWithdrawalDelay(newDelay)
+      ).to.be.reverted;
+    });
+  });
+});

@@ -13,14 +13,16 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
 
 ### Key Features
 
+- **👑 Queen Autonomy**: 24/7 autonomous operations with multi-layer safeguards
 - **🤖 AI Orchestration**: Queen AI with 10+ specialized bee agents
-- **💰 Autonomous Treasury**: AI-managed allocation and investments
+- **💰 Autonomous Treasury**: AI-managed allocation and investments (400M OMK)
 - **🔄 Cross-Chain**: Ethereum + Solana with seamless bridge
 - **📊 Dynamic Economics**: AI-adjusted APY, liquidity, and tokenomics
 - **🏠 Asset Tokenization**: Fractional real estate and RWA support
 - **🧠 Multi-LLM**: Gemini, GPT-4, Claude 3.5, X Grok with failover
 - **📈 Learning Function**: Background data collection for future self-hosted models
 - **🌐 ASI Integration**: Fetch.ai uAgents for decentralized agent network
+- **🛡️ Safety First**: Rate limiting (50M/day), emergency controls, full transparency
 
 ## 🏗️ Architecture
 
@@ -141,8 +143,58 @@ omakh-Hive/
 - **Monitoring**: Cloud Monitoring, Cloud Logging
 - **Secrets**: Secret Manager
 
+## 👑 Queen Autonomy Architecture
+
+**OMK Hive's Queen AI operates autonomously 24/7** with full control over 400M OMK tokens for market operations.
+
+### **Why Autonomous?**
+- ⚡ **Real-time response** to market conditions (no human delay)
+- 🤖 **True AI governance** (not admin-approved actions)
+- 🌍 **24/7 availability** (Queen never sleeps)
+
+### **Safeguards**
+- 🛡️ **50M OMK daily limit** (5% of supply maximum per day)
+- 🔔 **Large transfer alerts** (>100M OMK triggers monitoring)
+- 🚨 **Emergency pause** (Admin can halt all operations)
+- 📊 **Full transparency** (All operations logged on-chain)
+
+### **Queen's Responsibilities**
+1. **DEX Liquidity Management** - Add/remove liquidity in real-time
+2. **Market Making** - CEX operations and order book management
+3. **Staking Rewards** - Calculate and distribute rewards daily
+4. **Airdrops & Incentives** - Community growth campaigns
+5. **Cross-chain Operations** - Bridge management and multi-chain liquidity
+
+**Learn more**: [Queen Autonomy Architecture](docs/QUEEN_AUTONOMY_ARCHITECTURE.md)
+
+## 💰 Tokenomics
+
+**Total Supply**: 1,000,000,000 OMK
+
+| Allocation | Amount | % | Control |
+|------------|--------|---|---------|
+| Public Acquisition | 400M | 40% | Queen AI (immediate) |
+| Founders | 250M | 25% | Vested (12m cliff + 36m) |
+| Treasury | 120M | 12% | TreasuryVault |
+| Ecosystem | 100M | 10% | Queen AI (36m vesting) |
+| Private Investors | 100M | 10% | Private Sale (30m vesting) |
+| Advisors | 20M | 2% | Vested (18m linear) |
+| Breakswitch | 10M | 1% | Admin (emergency) |
+
+### **Private Sale**
+- **Structure**: 10 tiers × 10M tokens
+- **Price Range**: $0.100 - $0.145 per token
+- **Total Raise**: $12.25M USD
+- **Whale Limit**: 20M OMK per investor
+- **Vesting**: 12-month cliff + 18-month linear
+
+**Learn more**: [Tokenomics](docs/TOKENOMICS_UPDATED.md) | [Private Sale](docs/PRIVATE_SALE_STRUCTURE.md)
+
 ## 📚 Documentation
 
+- [Queen Autonomy Architecture](docs/QUEEN_AUTONOMY_ARCHITECTURE.md) ⭐ **NEW**
+- [Private Sale Structure](docs/PRIVATE_SALE_STRUCTURE.md) ⭐ **NEW**
+- [Tokenomics](docs/TOKENOMICS_UPDATED.md) ⭐ **UPDATED**
 - [Architecture Overview](docs/architecture/README.md)
 - [Smart Contracts](docs/architecture/contracts.md)
 - [Queen AI System](docs/architecture/queen-ai.md)
@@ -218,9 +270,20 @@ Built by the OMK Hive team with ❤️
 
 ## 📊 Project Status
 
-**Current Phase**: Prime Task 1 - Foundation Setup  
-**Status**: In Development  
-**Target Launch**: Q2 2025
+**Current Phase**: Prime Task 2 - Smart Contract Development  
+**Progress**:
+- ✅ PRIME TASK 1: Foundation & Setup (74% complete)
+- 🚧 PRIME TASK 2: Smart Contracts (30% complete)
+  - ✅ OMKToken.sol with Queen autonomy safeguards
+  - ✅ QueenController.sol with operation tracking
+  - ✅ PrivateSale.sol with tiered pricing
+  - ✅ TokenVesting.sol utility
+  - ⏳ TreasuryVault.sol (pending)
+  - ⏳ LiquiditySentinel.sol (pending)
+- ⏳ PRIME TASK 3: AI Core (not started)
+
+**Status**: Active Development  
+**Target Launch**: Q2 2026
 
 ---
 

@@ -1,8 +1,26 @@
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import "@nomicfoundation/hardhat-verify";
+import { HardhatUserConfig } from "hardhat/types";
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+import "hardhat-deploy";
+import "hardhat-contract-sizer";
+import "hardhat-abi-exporter";
+import "@openzeppelin/hardhat-upgrades";
+import "@typechain/hardhat";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
+
+// Extend the HardhatUserConfig type to include namedAccounts
+declare module "hardhat/types/config" {
+  interface HardhatUserConfig {
+    namedAccounts?: {
+      [name: string]: string | number | { [network: string]: null | number | string };
+    };
+  }
+}
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -12,30 +30,57 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200,
       },
-    },
-  },
-  networks: {
-    hardhat: {
-      chainId: 31337,
-      allowUnlimitedContractSize: true,
-    },
-    localhost: {
-      url: "http://127.0.0.1:8545",
-      chainId: 31337,
+      viaIR: true,
     },
   },
   gasReporter: {
-    enabled: false,
+    enabled: process.env.REPORT_GAS === "true",
     currency: "USD",
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+    token: "ETH",
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   paths: {
     sources: "./src",
     tests: "./test",
     cache: "./cache",
-    artifacts: "./artifacts",
+    artifacts: "./artifacts"
   },
   mocha: {
     timeout: 40000,
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    approver1: {
+      default: 1,
+    },
+    approver2: {
+      default: 2,
+    },
+    approver3: {
+      default: 3,
+    },
+  },
+  // @ts-ignore - Hardhat plugin types are not properly recognized
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
+  },
+  // @ts-ignore - Hardhat plugin types are not properly recognized
+  abiExporter: {
+    path: "./abis",
+    runOnCompile: true,
+    clear: true,
+    flat: true,
+    only: [],
+    spacing: 2,
+    pretty: false,
   },
 };
 

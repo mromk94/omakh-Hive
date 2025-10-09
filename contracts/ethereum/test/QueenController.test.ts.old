@@ -1,0 +1,156 @@
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
+import { ethers } from "hardhat";
+
+describe("QueenController", function () {
+  async function deployQueenControllerFixture() {
+    const [owner, queen, beeWhitelister, taskManager, otherAccount] = await ethers.getSigners();
+
+    // Deploy the QueenController contract
+    const QueenController = await ethers.getContractFactory("QueenController");
+    const controller = await QueenController.deploy(owner.address, queen.address);
+
+    // Grant roles for testing
+    await controller.grantRole(await controller.BEE_WHITELISTER_ROLE(), beeWhitelister.address);
+    await controller.grantRole(await controller.TASK_MANAGER_ROLE(), taskManager.address);
+
+    return { controller, owner, queen, beeWhitelister, taskManager, otherAccount };
+  }
+
+  describe("Deployment", function () {
+    it("Should set the right initial values", async function () {
+      const { controller, queen } = await loadFixture(deployQueenControllerFixture);
+      
+      expect(await controller.queenAddress()).to.equal(queen.address);
+      expect(await controller.isActive()).to.be.true;
+      expect(await controller.totalBees()).to.equal(0);
+    });
+  });
+
+  describe("Bee Management", function () {
+    it("Should allow whitelister to spawn a bee", async function () {
+      const { controller, beeWhitelister } = await loadFixture(deployQueenControllerFixture);
+      const beeType = 1; // LogicBee
+      const initData = "0x";
+      
+      await expect(controller.connect(beeWhitelister).spawnBee(beeType, initData))
+        .to.emit(controller, "BeeSpawned");
+      
+      expect(await controller.totalBees()).to.equal(1);
+    });
+
+    it("Should not allow non-whitelisters to spawn bees", async function () {
+      const { controller, otherAccount } = await loadFixture(deployQueenControllerFixture);
+      const beeType = 1; // LogicBee
+      const initData = "0x";
+      
+      await expect(
+        controller.connect(otherAccount).spawnBee(beeType, initData)
+      ).to.be.revertedWithCustomError(
+        controller,
+        "AccessControlUnauthorizedAccount"
+      ).withArgs(otherAccount.address, await controller.BEE_WHITELISTER_ROLE());
+    });
+
+    it("Should allow whitelister to retire a bee", async function () {
+      const { controller, beeWhitelister } = await loadFixture(deployQueenControllerFixture);
+      const beeType = 1; // LogicBee
+      const initData = "0x";
+      
+      await controller.connect(beeWhitelister).spawnBee(beeType, initData);
+      const beeAddress = await controller.getBeeAddress(0);
+      
+      await expect(controller.connect(beeWhitelister).retireBee(beeAddress))
+        .to.emit(controller, "BeeRetired");
+      
+      expect(await controller.isBeeActive(beeAddress)).to.be.false;
+    });
+  });
+
+  describe("Task Management", function () {
+    it("Should allow task manager to assign a task", async function () {
+      const { controller, beeWhitelister, taskManager } = await loadFixture(deployQueenControllerFixture);
+      
+      // Spawn a bee first
+      await controller.connect(beeWhitelister).spawnBee(1, "0x");
+      const beeAddress = await controller.getBeeAddress(0);
+      
+      const taskData = ethers.keccak256(ethers.toUtf8Bytes("test task"));
+      
+      await expect(controller.connect(taskManager).assignTask(beeAddress, taskData))
+        .to.emit(controller, "TaskAssigned");
+    });
+
+    it("Should allow queen to complete a task", async function () {
+      const { controller, beeWhitelister, taskManager, queen } = await loadFixture(deployQueenControllerFixture);
+      
+      // Spawn a bee first
+      await controller.connect(beeWhitelister).spawnBee(1, "0x");
+      const beeAddress = await controller.getBeeAddress(0);
+      
+      // Assign a task
+      const taskData = ethers.keccak256(ethers.toUtf8Bytes("test task"));
+      const tx = await controller.connect(taskManager).assignTask(beeAddress, taskData);
+      const receipt = await tx.wait();
+      
+      // Find the TaskAssigned event to get the taskId
+      const taskAssignedEvent = receipt?.logs?.find(
+        (log: any) => log.fragment?.name === "TaskAssigned"
+      );
+      
+      const taskId = taskAssignedEvent?.args?.taskId;
+      
+      // Complete the task (as the queen)
+      const result = ethers.keccak256(ethers.toUtf8Bytes("task completed"));
+      await expect(controller.connect(queen).completeTask(taskId, result))
+        .to.emit(controller, "TaskCompleted");
+      
+      // Verify task status
+      const [completed, , taskResult] = await controller.getTaskStatus(taskId);
+      expect(completed).to.be.true;
+      expect(taskResult).to.equal(result);
+    });
+  });
+
+  describe("Access Control", function () {
+    it("Should allow admin to update queen address", async function () {
+      const { controller, owner, otherAccount } = await loadFixture(deployQueenControllerFixture);
+      
+      await controller.connect(owner).updateQueenAddress(otherAccount.address);
+      expect(await controller.queenAddress()).to.equal(otherAccount.address);
+    });
+
+    it("Should not allow non-admins to update queen address", async function () {
+      const { controller, otherAccount } = await loadFixture(deployQueenControllerFixture);
+      
+      await expect(
+        controller.connect(otherAccount).updateQueenAddress(otherAccount.address)
+      ).to.be.revertedWithCustomError(
+        controller,
+        "AccessControlUnauthorizedAccount"
+      ).withArgs(otherAccount.address, ethers.ZeroHash);
+    });
+  });
+
+  describe("Emergency Functions", function () {
+    it("Should allow admin to pause the contract", async function () {
+      const { controller, owner } = await loadFixture(deployQueenControllerFixture);
+      
+      await controller.connect(owner).pause();
+      expect(await controller.paused()).to.be.true;
+      
+      await controller.connect(owner).unpause();
+      expect(await controller.paused()).to.be.false;
+    });
+
+    it("Should allow admin to emergency shutdown", async function () {
+      const { controller, owner } = await loadFixture(deployQueenControllerFixture);
+      
+      await expect(controller.connect(owner).emergencyShutdown())
+        .to.emit(controller, "EmergencyShutdown");
+      
+      expect(await controller.isActive()).to.be.false;
+      expect(await controller.paused()).to.be.true;
+    });
+  });
+});
