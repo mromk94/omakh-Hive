@@ -60,3 +60,10 @@ cachetools<5.0.0,>=4.2.2
 # System Management & Monitoring
 psutil==5.9.6  # Process and system monitoring
 google-cloud-logging==3.8.0  # Cloud Logging (optional)
+
+# Blockchain Integration
+web3==6.15.1  # Ethereum Web3
+solana==0.34.4  # Solana Python SDK
+solders==0.20.0  # Solana Rust bindings
+eth-account==0.10.0  # Ethereum account management
+eth-typing==3.6.0  # Ethereum type hints
