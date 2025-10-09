@@ -1,0 +1,4 @@
+timestamp,table,pool_address,dex,token_a,token_b,liquidity_usd,volume_24h,reserve_a,reserve_b
+2025-10-09T16:44:40.883911,dex_pools,0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852,uniswap_v2,,,0,0,0,0
+2025-10-09T16:44:40.883911,dex_pools,0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc,uniswap_v2,,,0,0,0,0
+2025-10-09T16:44:40.883911,dex_pools,0xd3d2E2692501A5c9Ca623199D38826e513033a17,uniswap_v2,,,0,0,0,0

@@ -2056,7 +2056,7 @@ python3 manage.py deploy gcp     # Deploy to GCP
   - [ ] Set up bug bounty program
 
 - [ ] **8.9 Penetration Testing**
-  - [ ] Hire security firm for pen testing
+  - [ ] Begin Brutal pen testing
   - [ ] Test backend API endpoints
   - [ ] Test smart contract vulnerabilities
   - [ ] Test bridge security
