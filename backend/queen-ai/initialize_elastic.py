@@ -66,7 +66,7 @@ async def main():
         print("\n✅ Test log written successfully!")
         
         print("\n" + "=" * 60)
-        print("READY FOR HACKATHON!")
+        print("ELASTIC SEARCH READY!")
         print("=" * 60)
         print("\nYou can now:")
         print("  1. Start Queen AI: python3 main.py")

@@ -131,4 +131,23 @@ python3 -c "from app.integrations import ElasticSearchIntegration; import asynci
 python3 main.py
 ```
 
-**Status**: Ready for production deployment! 🚀
+---
+
+## 📤 QUICK START: Upload Data to GCS
+
+```bash
+# 1. Authenticate with Google Cloud
+gcloud auth application-default login
+
+# 2. Collect blockchain data
+python3 sync_to_gcs.py
+
+# 3. Upload to GCS
+python3 upload_to_gcs.py data_sync_*.json
+
+# 4. Unpause Fivetran connector
+# Go to: https://fivetran.com/dashboard/connectors/ballad_monde
+# Click "Resume Connector"
+```
+
+**Status**: Production infrastructure deployed! 🚀
