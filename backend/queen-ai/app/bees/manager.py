@@ -22,6 +22,8 @@ from app.bees.governance_bee import GovernanceBee
 from app.bees.visualization_bee import VisualizationBee
 from app.bees.bridge_bee import BridgeBee
 from app.bees.data_pipeline_bee import DataPipelineBee
+from app.bees.onboarding_bee import OnboardingBee
+from app.bees.user_experience_bee import UserExperienceBee
 from app.integrations.elastic_search import ElasticSearchIntegration
 
 logger = structlog.get_logger(__name__)
@@ -109,6 +111,14 @@ class BeeManager:
             # Data Pipeline Bee (Automated Data Collection & Sync)
             self.bees["data_pipeline"] = DataPipelineBee(bee_id=17)
             logger.info("✅ DataPipelineBee initialized")
+            
+            # Onboarding Bee (User Management & Database)
+            self.bees["onboarding"] = OnboardingBee(bee_id=18)
+            logger.info("✅ OnboardingBee initialized")
+            
+            # User Experience Bee (Frontend AI Interactions)
+            self.bees["user_experience"] = UserExperienceBee(bee_id=19)
+            logger.info("✅ UserExperienceBee initialized")
             
             # Provide LLM access to bees that need intelligent reasoning
             if self.llm:
