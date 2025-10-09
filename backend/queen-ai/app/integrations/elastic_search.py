@@ -43,15 +43,25 @@ class ElasticSearchIntegration:
             api_key: Elastic API key
             gemini_client: Gemini client for embeddings
         """
-        self.cloud_id = cloud_id or os.getenv('ELASTIC_CLOUD_ID')
+        elastic_endpoint = cloud_id or os.getenv('ELASTIC_CLOUD_ID')
         self.api_key = api_key or os.getenv('ELASTIC_API_KEY')
         self.gemini = gemini_client
         
         # Initialize Elasticsearch client
-        self.es = AsyncElasticsearch(
-            cloud_id=self.cloud_id,
-            api_key=self.api_key
-        )
+        # Support both Cloud ID and direct URL
+        if elastic_endpoint and elastic_endpoint.startswith('http'):
+            # Direct URL
+            self.es = AsyncElasticsearch(
+                hosts=[elastic_endpoint],
+                api_key=self.api_key,
+                verify_certs=True
+            )
+        else:
+            # Cloud ID
+            self.es = AsyncElasticsearch(
+                cloud_id=elastic_endpoint,
+                api_key=self.api_key
+            )
         
         # Index names
         self.bee_activities_index = "omk_hive_bee_activities"

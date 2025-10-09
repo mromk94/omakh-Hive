@@ -1,0 +1,10 @@
+{
+  "connector_name": "omk_hive_blockchain",
+  "destination_group_id": "emc2ODdyMFhQWTFkZEY2cDpmbll2VkswUDExUkxiMjY2OHFBUHpuVmNJYk1qSThnVw==",
+  "config": {
+    "ethereum_rpc_url": "https://mainnet.infura.io/v3/35b7354b0d3343588847954c9cf497c9",
+    "solana_rpc_url": "https://api.mainnet-beta.solana.com",
+    "monitored_wallets": []
+  },
+  "sync_frequency": 15
+}

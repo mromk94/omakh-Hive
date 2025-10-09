@@ -1,0 +1,323 @@
+{
+  "blockchain": [
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0xe261ff12fa349f54467b35751608a5f389f20e6da71c242bbd233785bb4f30a5",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0xFac983fCe7ef3ceE8FFb2cEB967e1b2362AAda00",
+        "to_address": "0x00000000003b3cc22aF3aE1EAc0440BcEe416B40",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 1.16391284,
+        "gas_used": 1449822,
+        "status": "success",
+        "nonce": 11496,
+        "transaction_index": 0,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0x34832f47407a7498703da68307388ea838bb340198c5386e4991b96b208b4c16",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0xCC475c05E3c27B284ae542b3ef5889c8Edbc5E57",
+        "to_address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 1.24291284,
+        "gas_used": 216263,
+        "status": "success",
+        "nonce": 7,
+        "transaction_index": 1,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0x0caeb5a3c9ee5afed6693c0e22abd00c4e2bb5340296d51823c041fe3f2f4fe8",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0xFac983fCe7ef3ceE8FFb2cEB967e1b2362AAda00",
+        "to_address": "0x00000000003b3cc22aF3aE1EAc0440BcEe416B40",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 1.16391284,
+        "gas_used": 1300768,
+        "status": "success",
+        "nonce": 11497,
+        "transaction_index": 2,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0x72c6ee7eb4f1e1770f517478055a3e3b9276627db7de75690f17094ad2adf8e6",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0x26cE7c1976C5eec83eA6Ac22D83cB341B08850aF",
+        "to_address": "0x00000000003b3cc22aF3aE1EAc0440BcEe416B40",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 1.16391284,
+        "gas_used": 556801,
+        "status": "success",
+        "nonce": 162034,
+        "transaction_index": 3,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0x55c5f809d487188b18c753b4256f548087060db645090c07beb6b3a702095d29",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0x349f7C57F5e6f0549a6F3D98C9D3d0f41de72c58",
+        "to_address": "0x2E1Dee213BA8d7af0934C49a23187BabEACa8764",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 1.24291284,
+        "gas_used": 679884,
+        "status": "success",
+        "nonce": 557,
+        "transaction_index": 4,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0xa03689dd149bdf604972966d013ac97ca41c4af6939b35e73ef2109be602ca88",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0x26cE7c1976C5eec83eA6Ac22D83cB341B08850aF",
+        "to_address": "0x00000000003b3cc22aF3aE1EAc0440BcEe416B40",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 1.16391284,
+        "gas_used": 502084,
+        "status": "success",
+        "nonce": 162035,
+        "transaction_index": 5,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0x5fd50a01a6f63d796cdee1425e91187d5020d2c08bc3e24a4b0c2111d1b23ed9",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0x9090e982cFd90e796Dd517f2Aa95d9a4112212d8",
+        "to_address": "0x92C86829c2FfDe49F31e9235C2c955BA2DDc9758",
+        "value_wei": "699914191580431000",
+        "value_eth": 0.699914191580431,
+        "gas_price_gwei": 4.16391284,
+        "gas_used": 21000,
+        "status": "success",
+        "nonce": 29,
+        "transaction_index": 6,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0xc89cf21c686c1b29f811b3bc210c101b740b0f937b244d781af34b5b92dcdc73",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0xDB4A2Ab420805f5eA80749757639f32B6039Ec82",
+        "to_address": "0x978E75381D64FB18aF7112E42Fa76a211a773456",
+        "value_wei": "16103875587582343",
+        "value_eth": 0.016103875587582344,
+        "gas_price_gwei": 6.16391284,
+        "gas_used": 21000,
+        "status": "success",
+        "nonce": 0,
+        "transaction_index": 7,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0x66b121fc1b7d33bfef2350925c7eaf9a84e4bb8ec51bff3f8548da2e4616f4e8",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0x7830c87C02e56AFf27FA8Ab1241711331FA86F43",
+        "to_address": "0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 2.16391284,
+        "gas_used": 446545,
+        "status": "success",
+        "nonce": 2778607,
+        "transaction_index": 8,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    },
+    {
+      "table": "ethereum_transactions",
+      "data": {
+        "tx_hash": "0xb04c23b56f148167317a5a2eac518014876bc057178bda37d59ea331a30047c7",
+        "block_number": 23541147,
+        "block_timestamp": "2025-10-09T15:43:47+00:00",
+        "from_address": "0x172f108E7404839eD286B4c8a8dcE40288069849",
+        "to_address": "0x3073f7aAA4DB83f95e9FFf17424F71D4751a3073",
+        "value_wei": "0",
+        "value_eth": 0.0,
+        "gas_price_gwei": 3.16391284,
+        "gas_used": 56557,
+        "status": "success",
+        "nonce": 7068,
+        "transaction_index": 9,
+        "synced_at": "2025-10-09T16:03:47.881904+00:00"
+      }
+    }
+  ],
+  "dex": [
+    {
+      "table": "dex_pools",
+      "data": {
+        "pool_address": "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852",
+        "dex": "uniswap_v2",
+        "chain": "ethereum",
+        "token0_address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "token1_address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "token0_symbol": "WETH",
+        "token1_symbol": "USDT",
+        "reserve0": "10620039685993388340218",
+        "reserve1": "45796520767468",
+        "price_ratio": 4.3122739765152055e-09,
+        "total_liquidity_usd": 10620.03973178991,
+        "lp_token_supply": "240637709978510036",
+        "timestamp": "2025-10-09T16:03:50.974730+00:00",
+        "block_number": 23541247,
+        "synced_at": "2025-10-09T16:03:50.974730+00:00"
+      }
+    },
+    {
+      "table": "dex_pools",
+      "data": {
+        "pool_address": "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc",
+        "dex": "uniswap_v2",
+        "chain": "ethereum",
+        "token0_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "token1_address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "token0_symbol": "USDC",
+        "token1_symbol": "WETH",
+        "reserve0": "14243573741732",
+        "reserve1": "3302005183064739474564",
+        "price_ratio": 231824206.6869954,
+        "total_liquidity_usd": 3302.0051973083137,
+        "lp_token_supply": "80080830429709845",
+        "timestamp": "2025-10-09T16:03:50.974730+00:00",
+        "block_number": 23541247,
+        "synced_at": "2025-10-09T16:03:50.974730+00:00"
+      }
+    },
+    {
+      "table": "dex_pools",
+      "data": {
+        "pool_address": "0xd3d2E2692501A5c9Ca623199D38826e513033a17",
+        "dex": "uniswap_v2",
+        "chain": "ethereum",
+        "token0_address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+        "token1_address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "token0_symbol": "UNI",
+        "token1_symbol": "WETH",
+        "reserve0": "338997514265638328822131",
+        "reserve1": "606761557785881444228",
+        "price_ratio": 0.0017898702269256858,
+        "total_liquidity_usd": 339604.2758234242,
+        "lp_token_supply": "5530426585592847547463",
+        "timestamp": "2025-10-09T16:03:50.974730+00:00",
+        "block_number": 23541247,
+        "synced_at": "2025-10-09T16:03:50.974730+00:00"
+      }
+    }
+  ],
+  "oracle": [
+    {
+      "table": "chainlink_prices",
+      "data": {
+        "pair": "ETH/USD",
+        "oracle": "chainlink",
+        "feed_address": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
+        "round_id": 129127208515966880030,
+        "price": 4312.65,
+        "decimals": 8,
+        "updated_at": "2025-10-09T15:30:59+00:00",
+        "answered_in_round": 129127208515966880030,
+        "synced_at": "2025-10-09T16:03:57.896303+00:00"
+      }
+    },
+    {
+      "table": "chainlink_prices",
+      "data": {
+        "pair": "BTC/USD",
+        "oracle": "chainlink",
+        "feed_address": "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c",
+        "round_id": 129127208515966874143,
+        "price": 120960.9,
+        "decimals": 8,
+        "updated_at": "2025-10-09T15:35:23+00:00",
+        "answered_in_round": 129127208515966874143,
+        "synced_at": "2025-10-09T16:03:57.896303+00:00"
+      }
+    },
+    {
+      "table": "chainlink_prices",
+      "data": {
+        "pair": "LINK/USD",
+        "oracle": "chainlink",
+        "feed_address": "0x2c1d072e956AFFC0D435Cb7AC38EF18d24d9127c",
+        "round_id": 129127208515966876155,
+        "price": 21.53059823,
+        "decimals": 8,
+        "updated_at": "2025-10-09T15:54:35+00:00",
+        "answered_in_round": 129127208515966876155,
+        "synced_at": "2025-10-09T16:03:57.896303+00:00"
+      }
+    },
+    {
+      "table": "chainlink_prices",
+      "data": {
+        "pair": "USDC/USD",
+        "oracle": "chainlink",
+        "feed_address": "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
+        "round_id": 55340232221128655384,
+        "price": 0.99972541,
+        "decimals": 8,
+        "updated_at": "2025-10-09T08:00:35+00:00",
+        "answered_in_round": 55340232221128655384,
+        "synced_at": "2025-10-09T16:03:57.896303+00:00"
+      }
+    },
+    {
+      "table": "chainlink_prices",
+      "data": {
+        "pair": "DAI/USD",
+        "oracle": "chainlink",
+        "feed_address": "0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9",
+        "round_id": 129127208515966870504,
+        "price": 0.99963993,
+        "decimals": 8,
+        "updated_at": "2025-10-09T15:03:47+00:00",
+        "answered_in_round": 129127208515966870504,
+        "synced_at": "2025-10-09T16:03:57.896303+00:00"
+      }
+    }
+  ],
+  "metadata": {
+    "collected_at": "2025-10-09T16:03:47.116051",
+    "ethereum_rpc": "https://mainnet.infura.io/v3/35b7354b0d3343588847954c9cf497c9",
+    "solana_rpc": "https://api.mainnet-beta.solana.com"
+  }
+}
