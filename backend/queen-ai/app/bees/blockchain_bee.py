@@ -29,6 +29,8 @@ from app.blockchain import (
     wallet_manager,
     transaction_manager
 )
+from app.blockchain.dex import UniswapRouter, RaydiumRouter
+from app.blockchain.oracles import ChainlinkOracle, PythOracle
 
 logger = structlog.get_logger(__name__)
 
@@ -57,11 +59,23 @@ class BlockchainBee(BaseBee):
         self.wallet_mgr = wallet_manager
         self.tx_mgr = transaction_manager
         
+        # DEX Routers
+        self.uniswap = None  # Will be initialized
+        self.raydium = None  # Will be initialized
+        
+        # Price Oracles
+        self.chainlink = None  # Will be initialized
+        self.pyth = None  # Will be initialized
+        
         # State
         self.initialized_clients = {
             "ethereum": False,
             "solana": False,
-            "bridge": False
+            "bridge": False,
+            "uniswap": False,
+            "raydium": False,
+            "chainlink": False,
+            "pyth": False
         }
         
         # Trading configuration
@@ -70,7 +84,7 @@ class BlockchainBee(BaseBee):
         self.max_trade_size_sol = Decimal('100')  # 100 SOL max per trade
     
     async def initialize(self) -> bool:
-        """Initialize blockchain clients"""
+        """Initialize blockchain clients, DEX routers, and oracles"""
         try:
             # Initialize Ethereum client
             if not self.eth_client.initialized:
@@ -90,8 +104,47 @@ class BlockchainBee(BaseBee):
                 self.initialized_clients["bridge"] = True
                 logger.info("Bridge initialized")
             
+            # Initialize Uniswap router
+            try:
+                self.uniswap = UniswapRouter(self.eth_client)
+                await self.uniswap.initialize()
+                self.initialized_clients["uniswap"] = True
+                logger.info("Uniswap router initialized")
+            except Exception as e:
+                logger.warning(f"Uniswap initialization failed: {str(e)}")
+            
+            # Initialize Raydium router
+            try:
+                self.raydium = RaydiumRouter(self.sol_client)
+                await self.raydium.initialize()
+                self.initialized_clients["raydium"] = True
+                logger.info("Raydium router initialized")
+            except Exception as e:
+                logger.warning(f"Raydium initialization failed: {str(e)}")
+            
+            # Initialize Chainlink oracle
+            try:
+                self.chainlink = ChainlinkOracle(self.eth_client, network="mainnet")
+                await self.chainlink.initialize()
+                self.initialized_clients["chainlink"] = True
+                logger.info("Chainlink oracle initialized")
+            except Exception as e:
+                logger.warning(f"Chainlink initialization failed: {str(e)}")
+            
+            # Initialize Pyth oracle
+            try:
+                self.pyth = PythOracle(self.sol_client, network="mainnet")
+                await self.pyth.initialize()
+                self.initialized_clients["pyth"] = True
+                logger.info("Pyth oracle initialized")
+            except Exception as e:
+                logger.warning(f"Pyth initialization failed: {str(e)}")
+            
             self.initialized = True
-            logger.info("BlockchainBee fully initialized")
+            logger.info(
+                "BlockchainBee fully initialized",
+                services=self.initialized_clients
+            )
             return True
         
         except Exception as e:
@@ -131,6 +184,14 @@ class BlockchainBee(BaseBee):
             return await self._auto_rebalance(task_data)
         elif task_type == "emergency_withdraw":
             return await self._emergency_withdraw(task_data)
+        
+        # Price Oracle Operations (NEW)
+        elif task_type == "get_price":
+            return await self._get_price(task_data)
+        elif task_type == "get_multiple_prices":
+            return await self._get_multiple_prices(task_data)
+        elif task_type == "calculate_value":
+            return await self._calculate_token_value(task_data)
         
         else:
             return {
@@ -403,7 +464,7 @@ class BlockchainBee(BaseBee):
     
     async def _swap_tokens(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Automated token swap
+        Automated token swap using DEX routers
         
         Queen AI trigger for trading operations
         """
@@ -412,8 +473,8 @@ class BlockchainBee(BaseBee):
             token_in = data.get("token_in")
             token_out = data.get("token_out")
             amount_in = Decimal(str(data.get("amount_in")))
-            min_amount_out = data.get("min_amount_out")  # Slippage protection
-            dex = data.get("dex", "uniswap")  # uniswap, sushiswap, raydium, etc.
+            recipient = data.get("recipient")  # Recipient address
+            priority = data.get("priority", "normal")  # Gas priority
             
             # Validate trade size
             if chain == "ethereum" and amount_in > self.max_trade_size_eth:
@@ -421,31 +482,135 @@ class BlockchainBee(BaseBee):
                     "success": False,
                     "error": f"Trade size exceeds maximum: {self.max_trade_size_eth} ETH"
                 }
+            elif chain == "solana" and amount_in > self.max_trade_size_sol:
+                return {
+                    "success": False,
+                    "error": f"Trade size exceeds maximum: {self.max_trade_size_sol} SOL"
+                }
             
-            logger.info(
-                "Executing token swap",
-                chain=chain,
-                token_in=token_in,
-                token_out=token_out,
-                amount_in=float(amount_in),
-                dex=dex
-            )
+            if chain == "ethereum":
+                # Use Uniswap
+                if not self.initialized_clients.get("uniswap"):
+                    return {
+                        "success": False,
+                        "error": "Uniswap router not initialized"
+                    }
+                
+                # Get quote first
+                amount_in_wei = int(amount_in * Decimal(10**18))
+                quote = await self.uniswap.get_quote(
+                    token_in=token_in,
+                    token_out=token_out,
+                    amount_in=amount_in_wei
+                )
+                
+                if not quote["success"]:
+                    return quote
+                
+                # Calculate minimum output with slippage
+                min_amount_out = int(
+                    Decimal(quote["amount_out"]) * (Decimal('1') - self.slippage_tolerance)
+                )
+                
+                logger.info(
+                    "Executing Uniswap swap",
+                    token_in=token_in,
+                    token_out=token_out,
+                    amount_in=float(amount_in),
+                    expected_out=quote["amount_out"] / 10**18,
+                    min_out=min_amount_out / 10**18,
+                    price_impact=quote.get("price_impact", 0)
+                )
+                
+                # Execute swap
+                tx_hash = await self.uniswap.swap_tokens(
+                    token_in=token_in,
+                    token_out=token_out,
+                    amount_in=amount_in_wei,
+                    min_amount_out=min_amount_out,
+                    recipient=recipient or self.eth_client.default_account,
+                    gas_priority=priority
+                )
+                
+                return {
+                    "success": True,
+                    "chain": "ethereum",
+                    "dex": "uniswap",
+                    "token_in": token_in,
+                    "token_out": token_out,
+                    "amount_in": float(amount_in),
+                    "expected_amount_out": quote["amount_out"] / 10**18,
+                    "min_amount_out": min_amount_out / 10**18,
+                    "slippage_tolerance": float(self.slippage_tolerance),
+                    "price_impact": quote.get("price_impact", 0),
+                    "tx_hash": tx_hash,
+                    "explorer_url": f"https://etherscan.io/tx/{tx_hash}",
+                    "status": "pending"
+                }
             
-            # TODO: Integrate with DEX routers (Uniswap, Raydium, etc.)
-            # For now, return structure
+            elif chain == "solana":
+                # Use Raydium
+                if not self.initialized_clients.get("raydium"):
+                    return {
+                        "success": False,
+                        "error": "Raydium router not initialized"
+                    }
+                
+                # Get quote first
+                quote = await self.raydium.get_quote(
+                    token_in_mint=token_in,
+                    token_out_mint=token_out,
+                    amount_in=float(amount_in)
+                )
+                
+                if not quote["success"]:
+                    return quote
+                
+                # Calculate minimum output with slippage
+                min_amount_out = float(
+                    Decimal(str(quote["amount_out"])) * (Decimal('1') - self.slippage_tolerance)
+                )
+                
+                logger.info(
+                    "Executing Raydium swap",
+                    token_in=token_in,
+                    token_out=token_out,
+                    amount_in=float(amount_in),
+                    expected_out=quote["amount_out"],
+                    min_out=min_amount_out,
+                    price_impact=quote.get("price_impact", 0)
+                )
+                
+                # Execute swap
+                signature = await self.raydium.swap_tokens(
+                    token_in_mint=token_in,
+                    token_out_mint=token_out,
+                    amount_in=float(amount_in),
+                    min_amount_out=min_amount_out,
+                    priority_fee=10000 if priority == "high" else 5000
+                )
+                
+                return {
+                    "success": True,
+                    "chain": "solana",
+                    "dex": "raydium",
+                    "token_in": token_in,
+                    "token_out": token_out,
+                    "amount_in": float(amount_in),
+                    "expected_amount_out": quote["amount_out"],
+                    "min_amount_out": min_amount_out,
+                    "slippage_tolerance": float(self.slippage_tolerance),
+                    "price_impact": quote.get("price_impact", 0),
+                    "signature": signature,
+                    "explorer_url": f"https://solscan.io/tx/{signature}",
+                    "status": "pending"
+                }
             
-            return {
-                "success": True,
-                "chain": chain,
-                "dex": dex,
-                "token_in": token_in,
-                "token_out": token_out,
-                "amount_in": float(amount_in),
-                "estimated_amount_out": float(amount_in * Decimal('0.95')),  # Mock 5% slippage
-                "slippage_tolerance": float(self.slippage_tolerance),
-                "status": "pending",
-                "message": "Swap initiated - DEX router integration coming soon"
-            }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported chain: {chain}"
+                }
         
         except Exception as e:
             logger.error(f"Token swap failed: {str(e)}")
@@ -692,4 +857,161 @@ class BlockchainBee(BaseBee):
         
         except Exception as e:
             logger.error(f"Emergency withdrawal failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    # ========== PRICE ORACLE OPERATIONS (NEW) ==========
+    
+    async def _get_price(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get token price from oracle
+        
+        Uses Chainlink (Ethereum) or Pyth (Solana)
+        """
+        try:
+            chain = data.get("chain", "ethereum").lower()
+            pair = data.get("pair")  # e.g., "ETH/USD", "SOL/USD"
+            
+            if chain == "ethereum":
+                # Use Chainlink
+                if not self.initialized_clients.get("chainlink"):
+                    return {
+                        "success": False,
+                        "error": "Chainlink oracle not initialized"
+                    }
+                
+                price_data = await self.chainlink.get_price_with_metadata(pair)
+                
+                return price_data
+            
+            elif chain == "solana":
+                # Use Pyth
+                if not self.initialized_clients.get("pyth"):
+                    return {
+                        "success": False,
+                        "error": "Pyth oracle not initialized"
+                    }
+                
+                price_data = await self.pyth.get_price_with_confidence(pair)
+                
+                return price_data
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported chain: {chain}"
+                }
+        
+        except Exception as e:
+            logger.error(f"Get price failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_multiple_prices(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get multiple token prices at once
+        
+        Efficient batch price fetching
+        """
+        try:
+            chain = data.get("chain", "ethereum").lower()
+            pairs = data.get("pairs", [])  # List of pairs
+            
+            if not pairs:
+                return {
+                    "success": False,
+                    "error": "No pairs specified"
+                }
+            
+            if chain == "ethereum":
+                if not self.initialized_clients.get("chainlink"):
+                    return {
+                        "success": False,
+                        "error": "Chainlink oracle not initialized"
+                    }
+                
+                prices = await self.chainlink.get_multiple_prices(pairs)
+                
+                return {
+                    "success": True,
+                    "chain": "ethereum",
+                    "oracle": "chainlink",
+                    "prices": prices
+                }
+            
+            elif chain == "solana":
+                if not self.initialized_clients.get("pyth"):
+                    return {
+                        "success": False,
+                        "error": "Pyth oracle not initialized"
+                    }
+                
+                prices = await self.pyth.get_multiple_prices(pairs)
+                
+                return {
+                    "success": True,
+                    "chain": "solana",
+                    "oracle": "pyth",
+                    "prices": prices
+                }
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported chain: {chain}"
+                }
+        
+        except Exception as e:
+            logger.error(f"Get multiple prices failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _calculate_token_value(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate USD value of token amount
+        
+        Uses oracle prices
+        """
+        try:
+            chain = data.get("chain", "ethereum").lower()
+            token_amount = float(data.get("token_amount"))
+            token_pair = data.get("token_pair")  # e.g., "ETH/USD"
+            
+            if chain == "ethereum":
+                if not self.initialized_clients.get("chainlink"):
+                    return {
+                        "success": False,
+                        "error": "Chainlink oracle not initialized"
+                    }
+                
+                result = await self.chainlink.calculate_token_value(
+                    token_amount=token_amount,
+                    token_pair=token_pair
+                )
+                
+                result["chain"] = "ethereum"
+                result["oracle"] = "chainlink"
+                return result
+            
+            elif chain == "solana":
+                if not self.initialized_clients.get("pyth"):
+                    return {
+                        "success": False,
+                        "error": "Pyth oracle not initialized"
+                    }
+                
+                result = await self.pyth.calculate_token_value(
+                    token_amount=token_amount,
+                    token_pair=token_pair
+                )
+                
+                result["chain"] = "solana"
+                result["oracle"] = "pyth"
+                return result
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported chain: {chain}"
+                }
+        
+        except Exception as e:
+            logger.error(f"Calculate token value failed: {str(e)}")
             return {"success": False, "error": str(e)}
