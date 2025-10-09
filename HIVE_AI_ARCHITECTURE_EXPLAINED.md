@@ -233,6 +233,66 @@ Each bee is a **specialized service** that may or may not use LLMs:
 
 ---
 
+## Special Bee: DataBee - The Intelligence Layer
+
+**DataBee** is our enterprise data operations bee that provides unified access to all platform data.
+
+### What DataBee Does:
+
+1. **Elastic Search Integration**
+   - Searches all bee activity logs in real-time
+   - Hybrid search (vector embeddings + keyword)
+   - RAG-powered conversational queries: "Why did transaction X fail?"
+
+2. **BigQuery Integration**
+   - Queries historical blockchain data (Ethereum & Solana transactions)
+   - DEX pool analytics (Uniswap, Raydium)
+   - Price oracle data (Chainlink, Pyth)
+
+3. **AI-Powered Analytics**
+   - Generates insights from data using RAG
+   - Creates automated reports with recommendations
+   - Aggregates cross-source data
+
+### Example DataBee Query:
+
+```
+User: "What's our current ETH price and total TVL?"
+    ↓
+Queen AI → DataBee
+    ↓
+DataBee:
+  - Queries BigQuery for latest ETH price from Chainlink oracle
+  - Queries BigQuery for DEX pool TVL
+  - Uses RAG to generate natural answer
+  - Returns: "ETH is currently $2,450 (Chainlink). 
+             Total TVL across pools: $8.5M"
+```
+
+### DataBee Architecture:
+
+```
+Queen AI asks: "Show me liquidity trends"
+    ↓
+DataBee receives request
+    ↓
+┌─────────────────────────────┐
+│ DataBee Intelligence Layer  │
+├─────────────────────────────┤
+│ 1. Check Cache (5min TTL)   │
+│ 2. Query Elastic Search     │ ← Real-time bee logs
+│ 3. Query BigQuery           │ ← Historical blockchain data
+│ 4. Use Gemini RAG           │ ← Generate insights
+│ 5. Return formatted result  │
+└─────────────────────────────┘
+    ↓
+Returns: Structured data + AI insights
+```
+
+**Key Point**: DataBee transforms raw data into actionable intelligence for Queen AI and all other bees. It's the **data backbone** of the entire system.
+
+---
+
 ## Long-Term Benefits of Wrapper Approach
 
 ### Year 1-2: Use APIs
@@ -274,11 +334,11 @@ Because you built an abstraction layer, you can:
 │         ┌────────────────┼────────────────┐            │
 │         │                │                │            │
 │         ▼                ▼                ▼            │
-│   ┌─────────┐      ┌─────────┐     ┌─────────┐       │
-│   │Maths Bee│      │Liquidity│     │Treasury │       │
-│   │(no LLM) │      │Sentinel │     │  Bee    │       │
-│   │Pure Math│      │(ML+LLM) │     │(LLM+code)│      │
-│   └─────────┘      └─────────┘     └─────────┘       │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐ │
+│   │Maths Bee│  │Liquidity│  │Treasury │  │Data Bee │ │
+│   │(no LLM) │  │Sentinel │  │  Bee    │  │(RAG+BQ) │ │
+│   │Pure Math│  │(ML+LLM) │  │(LLM+code)│ │Elastic │ │
+│   └─────────┘  └─────────┘  └─────────┘  └─────────┘ │
 │                                                         │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │     LLM Provider Abstraction Layer               │  │

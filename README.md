@@ -14,12 +14,14 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
 ### Key Features
 
 - **👑 Queen Autonomy**: 24/7 autonomous operations with multi-layer safeguards
-- **🤖 AI Orchestration**: Queen AI with 10+ specialized bee agents
+- **🤖 AI Orchestration**: Queen AI with 16+ specialized bee agents
 - **💰 Autonomous Treasury**: AI-managed allocation and investments (400M OMK)
 - **🔄 Cross-Chain**: Ethereum + Solana with seamless bridge
 - **📊 Dynamic Economics**: AI-adjusted APY, liquidity, and tokenomics
 - **🏠 Asset Tokenization**: Fractional real estate and RWA support
 - **🧠 Multi-LLM**: Gemini, GPT-4, Claude 3.5, X Grok with failover
+- **🔍 Data Intelligence**: Enterprise DataBee with Elastic Search + BigQuery integration
+- **💬 Conversational AI**: RAG-powered queries on all platform data
 - **📈 Learning Function**: Background data collection for future self-hosted models
 - **🌐 ASI Integration**: Fetch.ai uAgents for decentralized agent network
 - **🛡️ Safety First**: Rate limiting (50M/day), emergency controls, full transparency
@@ -44,7 +46,8 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
              │                  │
       ┌──────▼─────┐     ┌─────▼──────┐
       │ Bee Agents │     │  Learning  │
-      │  (10+ AI)  │     │  Function  │
+      │  (16 AI)   │     │  Function  │
+      │ +DataBee   │     │ +Analytics │
       └──────┬─────┘     └────────────┘
              │
     ┌────────┴────────┐
