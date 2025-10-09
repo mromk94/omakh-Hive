@@ -21,8 +21,11 @@ def upload_file(file_path):
     print(f"📤 Uploading {file_path} to gs://{GCS_BUCKET}/")
     
     try:
-        # Initialize GCS client
-        client = storage.Client()
+        # Get project from env or use default
+        project_id = os.getenv('GCP_PROJECT_ID') or os.getenv('BIGQUERY_PROJECT_ID') or 'omk-hive-prod'
+        
+        # Initialize GCS client with project
+        client = storage.Client(project=project_id)
         bucket = client.bucket(GCS_BUCKET)
         
         # Upload file
