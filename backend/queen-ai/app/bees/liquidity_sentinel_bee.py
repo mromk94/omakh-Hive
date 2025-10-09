@@ -4,8 +4,14 @@ Liquidity Sentinel Bee - Price Control Department
 Off-chain orchestrator using AI to monitor price movements and LP ratios.
 Predicts volatility and calls for top-ups or buybacks.
 Integrates Pattern Recognition Bee's models for predictive market balancing.
+
+Now integrated with:
+- DEX Routers (Uniswap, Raydium)
+- Price Oracles (Chainlink, Pyth)
+- BlockchainBee (execution layer)
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from decimal import Decimal
 import structlog
 from app.bees.base import BaseBee
 
@@ -27,16 +33,29 @@ class LiquiditySentinelBee(BaseBee):
     
     def __init__(self, bee_id: int = None):
         super().__init__(bee_id=bee_id, name="LiquiditySentinelBee")
+        
         # Monitoring thresholds
         self.price_deviation_threshold = 0.05  # 5%
         self.volatility_high_threshold = 0.15  # 15%
         self.pool_health_critical = 30  # Below 30 is critical
         self.pool_health_warning = 50   # Below 50 is warning
+        
+        # Integration with other bees (set by BeeManager)
+        self.blockchain_bee = None  # For executing transactions
+        self.pattern_bee = None  # For predictive models
+        
+        # Pool monitoring
+        self.monitored_pools = {}  # pool_id -> pool_data
+        self.price_history = {}  # pool_id -> price_history
+        
+        # DEX & Oracle access (via BlockchainBee)
+        self.use_real_prices = False  # Will be enabled when integrated
     
     async def execute(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute sentinel task"""
         task_type = task_data.get("type")
         
+        # Original monitoring tasks
         if task_type == "monitor_price":
             return await self._monitor_price(task_data)
         elif task_type == "check_pool_health":
@@ -47,6 +66,19 @@ class LiquiditySentinelBee(BaseBee):
             return await self._recommend_action(task_data)
         elif task_type == "calculate_buyback":
             return await self._calculate_buyback(task_data)
+        
+        # NEW: DEX Integration tasks
+        elif task_type == "get_pool_price":
+            return await self._get_pool_price(task_data)
+        elif task_type == "execute_liquidity_action":
+            return await self._execute_liquidity_action(task_data)
+        elif task_type == "execute_buyback":
+            return await self._execute_buyback(task_data)
+        elif task_type == "monitor_all_pools":
+            return await self._monitor_all_pools(task_data)
+        elif task_type == "auto_rebalance_pool":
+            return await self._auto_rebalance_pool(task_data)
+        
         else:
             return {
                 "success": False,
@@ -344,3 +376,351 @@ class LiquiditySentinelBee(BaseBee):
             
         except Exception as e:
             return {"success": False, "error": str(e)}
+    
+    # ========== DEX INTEGRATION METHODS (NEW) ==========
+    
+    async def _get_pool_price(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get real-time pool price from oracle
+        
+        Uses Chainlink (Ethereum) or Pyth (Solana) via BlockchainBee
+        """
+        try:
+            if not self.blockchain_bee:
+                return {
+                    "success": False,
+                    "error": "BlockchainBee not connected"
+                }
+            
+            chain = data.get("chain", "ethereum")
+            token_pair = data.get("token_pair")  # e.g., "ETH/USD"
+            
+            # Get price from oracle via BlockchainBee
+            price_result = await self.blockchain_bee.execute({
+                "type": "get_price",
+                "chain": chain,
+                "pair": token_pair
+            })
+            
+            if not price_result.get("success"):
+                return price_result
+            
+            # Store in history for volatility analysis
+            pool_id = f"{chain}_{token_pair}"
+            if pool_id not in self.price_history:
+                self.price_history[pool_id] = []
+            
+            self.price_history[pool_id].append(price_result["price"])
+            
+            # Keep last 100 prices
+            if len(self.price_history[pool_id]) > 100:
+                self.price_history[pool_id] = self.price_history[pool_id][-100:]
+            
+            logger.info(
+                "Pool price fetched from oracle",
+                chain=chain,
+                pair=token_pair,
+                price=price_result["price"]
+            )
+            
+            return {
+                "success": True,
+                "chain": chain,
+                "token_pair": token_pair,
+                "price": price_result["price"],
+                "oracle": price_result.get("oracle", "unknown"),
+                "updated_at": price_result.get("updated_at"),
+                "price_history_count": len(self.price_history[pool_id])
+            }
+        
+        except Exception as e:
+            logger.error(f"Get pool price failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _execute_liquidity_action(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute liquidity action (add/remove) via BlockchainBee
+        
+        Queen AI approves → LiquiditySentinelBee coordinates → BlockchainBee executes
+        """
+        try:
+            if not self.blockchain_bee:
+                return {
+                    "success": False,
+                    "error": "BlockchainBee not connected"
+                }
+            
+            action = data.get("action")  # "add_liquidity" or "remove_liquidity"
+            chain = data.get("chain", "ethereum")
+            pool = data.get("pool")
+            amount = data.get("amount")
+            
+            logger.info(
+                "Executing liquidity action",
+                action=action,
+                chain=chain,
+                pool=pool,
+                amount=amount
+            )
+            
+            if action == "add_liquidity":
+                # Execute via BlockchainBee
+                result = await self.blockchain_bee.execute({
+                    "type": "add_liquidity",
+                    "chain": chain,
+                    "token_a": pool["token_a"],
+                    "token_b": pool["token_b"],
+                    "amount_a": pool["amount_a"],
+                    "amount_b": pool["amount_b"],
+                    "pool": pool.get("pool_address")
+                })
+            
+            elif action == "remove_liquidity":
+                result = await self.blockchain_bee.execute({
+                    "type": "remove_liquidity",
+                    "chain": chain,
+                    "pool": pool.get("pool_address"),
+                    "lp_tokens": amount
+                })
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown action: {action}"
+                }
+            
+            # Log action for Queen AI
+            if result.get("success"):
+                logger.info(
+                    "Liquidity action executed successfully",
+                    action=action,
+                    chain=chain,
+                    tx_hash=result.get("tx_hash") or result.get("signature")
+                )
+            
+            return result
+        
+        except Exception as e:
+            logger.error(f"Execute liquidity action failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _execute_buyback(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute token buyback via DEX
+        
+        Queen AI approves → LiquiditySentinelBee calculates → BlockchainBee executes swap
+        """
+        try:
+            if not self.blockchain_bee:
+                return {
+                    "success": False,
+                    "error": "BlockchainBee not connected"
+                }
+            
+            chain = data.get("chain", "ethereum")
+            token_in = data.get("token_in")  # Usually USDC/USDT
+            token_out = data.get("token_out")  # OMK token
+            amount = data.get("amount")
+            
+            logger.info(
+                "Executing buyback",
+                chain=chain,
+                token_in=token_in,
+                token_out=token_out,
+                amount=amount
+            )
+            
+            # Execute swap via BlockchainBee (which uses DEX routers)
+            result = await self.blockchain_bee.execute({
+                "type": "swap_tokens",
+                "chain": chain,
+                "token_in": token_in,
+                "token_out": token_out,
+                "amount_in": amount,
+                "priority": "high"  # Buybacks are high priority
+            })
+            
+            if result.get("success"):
+                logger.info(
+                    "Buyback executed successfully",
+                    chain=chain,
+                    amount_in=amount,
+                    expected_out=result.get("expected_amount_out"),
+                    tx_hash=result.get("tx_hash") or result.get("signature")
+                )
+            
+            return result
+        
+        except Exception as e:
+            logger.error(f"Execute buyback failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _monitor_all_pools(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Monitor all registered pools with real oracle prices
+        
+        Called periodically by Queen AI
+        """
+        try:
+            pools_to_monitor = data.get("pools", [])
+            
+            if not pools_to_monitor:
+                pools_to_monitor = list(self.monitored_pools.keys())
+            
+            results = []
+            alerts = []
+            
+            for pool_id in pools_to_monitor:
+                pool_data = self.monitored_pools.get(pool_id, data.get(f"pool_{pool_id}", {}))
+                
+                # Get real price from oracle
+                price_result = await self._get_pool_price({
+                    "chain": pool_data.get("chain", "ethereum"),
+                    "token_pair": pool_data.get("token_pair", "ETH/USD")
+                })
+                
+                if not price_result.get("success"):
+                    logger.warning(f"Failed to get price for pool {pool_id}")
+                    continue
+                
+                # Check pool health
+                health_result = await self._check_pool_health({
+                    "token_a_amount": pool_data.get("token_a_amount", 0),
+                    "token_b_amount": pool_data.get("token_b_amount", 0),
+                    "target_ratio": pool_data.get("target_ratio", 1.0),
+                    "volume_24h": pool_data.get("volume_24h", 0)
+                })
+                
+                # Monitor price deviation
+                expected_price = pool_data.get("expected_price", price_result["price"])
+                price_monitor = await self._monitor_price({
+                    "current_price": price_result["price"],
+                    "expected_price": expected_price,
+                    "pool_address": pool_id
+                })
+                
+                result = {
+                    "pool_id": pool_id,
+                    "price": price_result,
+                    "health": health_result,
+                    "price_monitoring": price_monitor
+                }
+                
+                results.append(result)
+                
+                # Collect alerts
+                if price_monitor.get("alert"):
+                    alerts.append({
+                        "pool_id": pool_id,
+                        **price_monitor["alert"]
+                    })
+                
+                if health_result.get("status") in ["critical", "warning"]:
+                    alerts.append({
+                        "pool_id": pool_id,
+                        "type": "pool_health",
+                        "severity": health_result["status"],
+                        "message": f"Pool health: {health_result['health_score']:.1f}",
+                        "recommendations": health_result.get("recommendations", [])
+                    })
+            
+            return {
+                "success": True,
+                "monitored_pools": len(results),
+                "results": results,
+                "alerts": alerts,
+                "critical_alerts": [a for a in alerts if a.get("severity") == "critical"],
+                "requires_action": len(alerts) > 0
+            }
+        
+        except Exception as e:
+            logger.error(f"Monitor all pools failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _auto_rebalance_pool(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Automatically rebalance pool to target ratio
+        
+        Queen AI can enable auto-mode for this
+        """
+        try:
+            pool_id = data.get("pool_id")
+            pool_data = self.monitored_pools.get(pool_id, data.get("pool_data", {}))
+            
+            # Check current state
+            health = await self._check_pool_health({
+                "token_a_amount": pool_data.get("token_a_amount"),
+                "token_b_amount": pool_data.get("token_b_amount"),
+                "target_ratio": pool_data.get("target_ratio", 1.0),
+                "volume_24h": pool_data.get("volume_24h", 0)
+            })
+            
+            if health["status"] == "healthy":
+                return {
+                    "success": True,
+                    "action_taken": False,
+                    "reason": "Pool already healthy",
+                    "health_score": health["health_score"]
+                }
+            
+            # Calculate rebalancing action
+            recommendation = await self._recommend_action({
+                "pool_health": health,
+                "price_analysis": {},
+                "volatility_prediction": {}
+            })
+            
+            actions_taken = []
+            
+            # Execute recommended actions (if Queen AI approved)
+            if data.get("queen_approved", False):
+                for action in recommendation["recommended_actions"]:
+                    if action["action"] in ["add_liquidity", "rebalance_pool"]:
+                        result = await self._execute_liquidity_action({
+                            "action": "add_liquidity",
+                            "chain": pool_data.get("chain", "ethereum"),
+                            "pool": pool_data,
+                            "amount": action["amount"]
+                        })
+                        
+                        actions_taken.append({
+                            "action": action["action"],
+                            "result": result
+                        })
+            
+            return {
+                "success": True,
+                "pool_id": pool_id,
+                "initial_health": health["health_score"],
+                "recommendations": recommendation,
+                "actions_taken": actions_taken,
+                "queen_approval_required": not data.get("queen_approved", False)
+            }
+        
+        except Exception as e:
+            logger.error(f"Auto rebalance pool failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    # ========== HELPER METHODS ==========
+    
+    def set_blockchain_bee(self, blockchain_bee):
+        """Connect to BlockchainBee for execution"""
+        self.blockchain_bee = blockchain_bee
+        self.use_real_prices = True
+        logger.info("LiquiditySentinelBee connected to BlockchainBee")
+    
+    def set_pattern_bee(self, pattern_bee):
+        """Connect to PatternBee for predictive models"""
+        self.pattern_bee = pattern_bee
+        logger.info("LiquiditySentinelBee connected to PatternBee")
+    
+    def register_pool(self, pool_id: str, pool_data: Dict[str, Any]):
+        """Register a pool for monitoring"""
+        self.monitored_pools[pool_id] = pool_data
+        logger.info(f"Pool registered for monitoring: {pool_id}")
+    
+    def unregister_pool(self, pool_id: str):
+        """Unregister a pool from monitoring"""
+        if pool_id in self.monitored_pools:
+            del self.monitored_pools[pool_id]
+            logger.info(f"Pool unregistered: {pool_id}")
