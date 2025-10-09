@@ -1,0 +1,13 @@
+# Allow all files in this directory
+!lib/
+!app/
+!components/
+!hooks/
+!public/
+
+# But ignore node_modules
+node_modules/
+.next/
+out/
+.DS_Store
+*.log
