@@ -181,6 +181,11 @@ class BeeManager:
             if "bridge" in self.bees and "blockchain" in self.bees:
                 logger.info("✅ BridgeBee → BlockchainBee connection available")
             
+            # Connect DataBee to Elastic Search (for data queries & RAG)
+            if "data" in self.bees and self.elastic:
+                self.bees["data"].set_elastic_client(self.elastic)
+                logger.info("✅ DataBee → Elastic Search connection established")
+            
             logger.info("🔗 All bee connections wired successfully")
         
         except Exception as e:
