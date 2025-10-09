@@ -20,6 +20,7 @@ from app.bees.monitoring_bee import MonitoringBee
 from app.bees.private_sale_bee import PrivateSaleBee
 from app.bees.governance_bee import GovernanceBee
 from app.bees.visualization_bee import VisualizationBee
+from app.bees.bridge_bee import BridgeBee
 
 logger = structlog.get_logger(__name__)
 
@@ -98,6 +99,10 @@ class BeeManager:
             self.bees["visualization"] = VisualizationBee(bee_id=15)
             logger.info("✅ VisualizationBee initialized")
             
+            # Bridge Bee (Cross-Chain Bridge Orchestrator)
+            self.bees["bridge"] = BridgeBee(bee_id=16)
+            logger.info("✅ BridgeBee initialized")
+            
             # Provide LLM access to bees that need intelligent reasoning
             if self.llm:
                 llm_enabled_bees = ["logic", "pattern", "governance", "security"]
@@ -117,6 +122,7 @@ class BeeManager:
             logger.info(f"   Sales: PrivateSale (Tiered Token Sales)")
             logger.info(f"   Governance: Governance (DAO Proposals & Voting)")
             logger.info(f"   Visualization: Visualization (Dashboards & Simulations)")
+            logger.info(f"   Bridge: Bridge (Cross-Chain Orchestration & Recovery)")
             logger.info(f"   Critical: Monitoring (Security/Health/Safety)")
             
         except Exception as e:

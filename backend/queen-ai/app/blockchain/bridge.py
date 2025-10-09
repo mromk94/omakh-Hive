@@ -35,6 +35,9 @@ class BridgeStatus(Enum):
     RELEASED = "released"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    STUCK = "stuck"  # Transaction stuck, needs intervention
+    RECOVERING = "recovering"  # Auto-recovery in progress
+    ADMIN_REVIEW = "admin_review"  # Requires manual review
 
 
 @dataclass
@@ -54,6 +57,17 @@ class BridgeTransaction:
     signatures: List[str] = None
     error: Optional[str] = None
     
+    # Recovery & monitoring fields
+    retry_count: int = 0
+    max_retries: int = 3
+    last_retry_at: Optional[datetime] = None
+    timeout_minutes: int = 60  # Transaction timeout
+    stuck_detection_time: Optional[datetime] = None
+    recovery_attempts: List[Dict] = None
+    admin_override: bool = False
+    admin_notes: Optional[str] = None
+    alert_sent: bool = False
+    
     def __post_init__(self):
         if self.created_at is None:
             self.created_at = datetime.utcnow()
@@ -61,6 +75,23 @@ class BridgeTransaction:
             self.validators = []
         if self.signatures is None:
             self.signatures = []
+        if self.recovery_attempts is None:
+            self.recovery_attempts = []
+    
+    def is_stuck(self) -> bool:
+        """Check if transaction is stuck"""
+        if self.status in [BridgeStatus.COMPLETED, BridgeStatus.CANCELLED]:
+            return False
+        
+        # Check timeout
+        time_elapsed = datetime.utcnow() - self.created_at
+        return time_elapsed.total_seconds() / 60 > self.timeout_minutes
+    
+    def time_remaining(self) -> int:
+        """Get time remaining before timeout (minutes)"""
+        time_elapsed = datetime.utcnow() - self.created_at
+        remaining = self.timeout_minutes - (time_elapsed.total_seconds() / 60)
+        return max(0, int(remaining))
 
 
 class CrossChainBridge:
@@ -542,15 +573,384 @@ class CrossChainBridge:
     
     async def get_bridge_stats(self) -> Dict[str, Any]:
         """Get bridge statistics"""
+        stuck_count = sum(1 for tx in self.pending_transactions.values() if tx.is_stuck())
+        
         return {
             "total_pending": len(self.pending_transactions),
             "total_completed": len(self.completed_transactions),
+            "stuck_transactions": stuck_count,
             "eth_liquidity": float(self.eth_liquidity),
             "sol_liquidity": float(self.sol_liquidity),
             "validators": len(self.validators),
             "is_healthy": self.is_healthy,
             "bridge_fee": float(self.bridge_fee_percentage * 100),
             "last_rebalance": self.last_rebalance.isoformat()
+        }
+    
+    # ========== RECOVERY & ADMIN FUNCTIONS ==========
+    
+    async def monitor_stuck_transactions(self):
+        """
+        Monitor and detect stuck transactions
+        
+        Called periodically by BridgeBee
+        """
+        stuck_txs = []
+        
+        for tx_id, tx in self.pending_transactions.items():
+            if tx.is_stuck() and tx.status != BridgeStatus.STUCK:
+                # Mark as stuck
+                tx.status = BridgeStatus.STUCK
+                tx.stuck_detection_time = datetime.utcnow()
+                stuck_txs.append(tx)
+                
+                logger.warning(
+                    "Stuck transaction detected",
+                    tx_id=tx_id,
+                    age_minutes=(datetime.utcnow() - tx.created_at).total_seconds() / 60,
+                    status=tx.status.value
+                )
+                
+                # Send alert if not already sent
+                if not tx.alert_sent:
+                    await self._send_stuck_transaction_alert(tx)
+                    tx.alert_sent = True
+        
+        return stuck_txs
+    
+    async def auto_recover_stuck_transactions(self):
+        """
+        Automatically attempt to recover stuck transactions
+        
+        Called by BridgeBee recovery routine
+        """
+        recovered = []
+        
+        for tx_id, tx in self.pending_transactions.items():
+            if tx.status == BridgeStatus.STUCK and tx.retry_count < tx.max_retries:
+                logger.info(f"Attempting auto-recovery for {tx_id}")
+                
+                tx.status = BridgeStatus.RECOVERING
+                tx.retry_count += 1
+                tx.last_retry_at = datetime.utcnow()
+                
+                try:
+                    # Attempt recovery based on current state
+                    if tx.direction == BridgeDirection.ETH_TO_SOL:
+                        success = await self._recover_eth_to_sol(tx)
+                    else:
+                        success = await self._recover_sol_to_eth(tx)
+                    
+                    if success:
+                        recovered.append(tx_id)
+                        logger.info(f"Successfully recovered transaction: {tx_id}")
+                    else:
+                        # Mark for admin review if max retries reached
+                        if tx.retry_count >= tx.max_retries:
+                            tx.status = BridgeStatus.ADMIN_REVIEW
+                            await self._send_admin_review_alert(tx)
+                            logger.error(
+                                f"Transaction requires admin review: {tx_id}",
+                                retries=tx.retry_count
+                            )
+                        else:
+                            tx.status = BridgeStatus.STUCK
+                
+                except Exception as e:
+                    tx.error = str(e)
+                    tx.status = BridgeStatus.STUCK
+                    logger.error(f"Recovery failed for {tx_id}: {str(e)}")
+                
+                # Log recovery attempt
+                tx.recovery_attempts.append({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "attempt": tx.retry_count,
+                    "success": tx_id in recovered,
+                    "error": tx.error
+                })
+        
+        return recovered
+    
+    async def _recover_eth_to_sol(self, tx: BridgeTransaction) -> bool:
+        """
+        Recover ETH → SOL transaction
+        
+        Recovery steps:
+        1. Check if locked on Ethereum
+        2. Re-collect validator signatures if needed
+        3. Retry minting on Solana
+        """
+        try:
+            # Step 1: Verify lock on Ethereum
+            if not tx.source_tx_hash:
+                # Lock wasn't completed, restart from beginning
+                logger.info("Re-locking on Ethereum...")
+                tx.source_tx_hash = await self._lock_on_ethereum(
+                    tx.from_address,
+                    tx.amount
+                )
+                tx.status = BridgeStatus.LOCKED
+            
+            # Step 2: Re-collect signatures if needed
+            if len(tx.signatures) < self.min_validators:
+                logger.info("Re-collecting validator signatures...")
+                tx.signatures = await self._collect_validator_signatures(tx)
+            
+            # Step 3: Retry minting on Solana
+            if not tx.dest_tx_hash:
+                logger.info("Re-minting on Solana...")
+                tx.dest_tx_hash = await self._mint_on_solana(
+                    tx.to_address,
+                    tx.amount,
+                    tx.signatures
+                )
+                tx.status = BridgeStatus.MINTED
+                tx.completed_at = datetime.utcnow()
+                
+                # Move to completed
+                del self.pending_transactions[tx.id]
+                self.completed_transactions[tx.id] = tx
+            
+            return True
+        
+        except Exception as e:
+            tx.error = f"Recovery failed: {str(e)}"
+            return False
+    
+    async def _recover_sol_to_eth(self, tx: BridgeTransaction) -> bool:
+        """Recover SOL → ETH transaction"""
+        try:
+            # Similar recovery logic for opposite direction
+            if not tx.source_tx_hash:
+                tx.source_tx_hash = await self._burn_on_solana(
+                    tx.from_address,
+                    tx.amount
+                )
+                tx.status = BridgeStatus.LOCKED
+            
+            if len(tx.signatures) < self.min_validators:
+                tx.signatures = await self._collect_validator_signatures(tx)
+            
+            if not tx.dest_tx_hash:
+                tx.dest_tx_hash = await self._release_on_ethereum(
+                    tx.to_address,
+                    tx.amount,
+                    tx.signatures
+                )
+                tx.status = BridgeStatus.RELEASED
+                tx.completed_at = datetime.utcnow()
+                
+                del self.pending_transactions[tx.id]
+                self.completed_transactions[tx.id] = tx
+            
+            return True
+        
+        except Exception as e:
+            tx.error = f"Recovery failed: {str(e)}"
+            return False
+    
+    async def queen_override_transaction(
+        self,
+        tx_id: str,
+        action: str,
+        reason: str
+    ) -> bool:
+        """
+        Queen AI override for stuck transactions
+        
+        Args:
+            tx_id: Transaction ID
+            action: "retry", "cancel", "force_complete", "manual_review"
+            reason: Reason for override
+            
+        Returns:
+            True if successful
+        """
+        tx = await self.get_transaction(tx_id)
+        if not tx:
+            return False
+        
+        tx.admin_override = True
+        tx.admin_notes = f"Queen override: {action} - {reason}"
+        
+        logger.warning(
+            "Queen AI override initiated",
+            tx_id=tx_id,
+            action=action,
+            reason=reason
+        )
+        
+        if action == "retry":
+            # Force retry
+            tx.retry_count = 0
+            tx.status = BridgeStatus.STUCK
+            return await self.auto_recover_stuck_transactions()
+        
+        elif action == "cancel":
+            # Cancel and refund
+            tx.status = BridgeStatus.CANCELLED
+            await self._process_refund(tx)
+            
+            # Move to completed
+            if tx_id in self.pending_transactions:
+                del self.pending_transactions[tx_id]
+            self.completed_transactions[tx_id] = tx
+            return True
+        
+        elif action == "force_complete":
+            # Manually mark as complete
+            tx.status = BridgeStatus.MINTED if tx.direction == BridgeDirection.ETH_TO_SOL else BridgeStatus.RELEASED
+            tx.completed_at = datetime.utcnow()
+            
+            if tx_id in self.pending_transactions:
+                del self.pending_transactions[tx_id]
+            self.completed_transactions[tx_id] = tx
+            return True
+        
+        elif action == "manual_review":
+            # Flag for manual review
+            tx.status = BridgeStatus.ADMIN_REVIEW
+            await self._send_admin_review_alert(tx)
+            return True
+        
+        return False
+    
+    async def admin_force_recovery(
+        self,
+        tx_id: str,
+        recovery_data: Dict[str, Any]
+    ) -> bool:
+        """
+        Admin manual recovery with custom data
+        
+        Args:
+            tx_id: Transaction ID
+            recovery_data: Custom recovery instructions
+                {
+                    "source_tx_hash": "0x...",  # Manual tx hash
+                    "dest_tx_hash": "0x...",     # Manual tx hash
+                    "signatures": [...],          # Manual signatures
+                    "notes": "Manual intervention details"
+                }
+        
+        Returns:
+            True if successful
+        """
+        tx = await self.get_transaction(tx_id)
+        if not tx:
+            return False
+        
+        logger.warning(
+            "Admin force recovery initiated",
+            tx_id=tx_id,
+            admin_data=recovery_data
+        )
+        
+        # Apply manual recovery data
+        if "source_tx_hash" in recovery_data:
+            tx.source_tx_hash = recovery_data["source_tx_hash"]
+        
+        if "dest_tx_hash" in recovery_data:
+            tx.dest_tx_hash = recovery_data["dest_tx_hash"]
+        
+        if "signatures" in recovery_data:
+            tx.signatures = recovery_data["signatures"]
+        
+        tx.admin_override = True
+        tx.admin_notes = recovery_data.get("notes", "Admin force recovery")
+        
+        # Complete transaction
+        tx.status = BridgeStatus.MINTED if tx.direction == BridgeDirection.ETH_TO_SOL else BridgeStatus.RELEASED
+        tx.completed_at = datetime.utcnow()
+        
+        if tx_id in self.pending_transactions:
+            del self.pending_transactions[tx_id]
+        self.completed_transactions[tx_id] = tx
+        
+        logger.info(f"Transaction {tx_id} manually recovered by admin")
+        
+        return True
+    
+    async def _process_refund(self, tx: BridgeTransaction):
+        """
+        Process refund for cancelled transaction
+        
+        Returns locked tokens to user
+        """
+        logger.info(
+            "Processing refund",
+            tx_id=tx.id,
+            amount=float(tx.amount),
+            to_address=tx.from_address
+        )
+        
+        # TODO: Implement actual refund logic
+        # This would release locked tokens back to original address
+        
+        pass
+    
+    async def _send_stuck_transaction_alert(self, tx: BridgeTransaction):
+        """Send alert for stuck transaction"""
+        logger.critical(
+            "ALERT: Stuck transaction detected",
+            tx_id=tx.id,
+            age_minutes=(datetime.utcnow() - tx.created_at).total_seconds() / 60,
+            amount=float(tx.amount),
+            direction=tx.direction.value
+        )
+        
+        # TODO: Integrate with notification system
+        # - Send to Queen AI
+        # - Send to admin dashboard
+        # - Send to monitoring system
+    
+    async def _send_admin_review_alert(self, tx: BridgeTransaction):
+        """Send alert requiring admin review"""
+        logger.critical(
+            "ALERT: Transaction requires admin review",
+            tx_id=tx.id,
+            retry_count=tx.retry_count,
+            error=tx.error
+        )
+        
+        # TODO: Integrate with admin notification system
+    
+    async def get_stuck_transactions(self) -> List[BridgeTransaction]:
+        """Get all stuck transactions"""
+        return [
+            tx for tx in self.pending_transactions.values()
+            if tx.status in [BridgeStatus.STUCK, BridgeStatus.ADMIN_REVIEW]
+        ]
+    
+    async def get_recovery_dashboard(self) -> Dict[str, Any]:
+        """
+        Get recovery dashboard data
+        
+        Returns comprehensive recovery metrics
+        """
+        stuck_txs = await self.get_stuck_transactions()
+        
+        return {
+            "total_stuck": len(stuck_txs),
+            "stuck_by_direction": {
+                "eth_to_sol": sum(1 for tx in stuck_txs if tx.direction == BridgeDirection.ETH_TO_SOL),
+                "sol_to_eth": sum(1 for tx in stuck_txs if tx.direction == BridgeDirection.SOL_TO_ETH)
+            },
+            "requiring_admin_review": sum(1 for tx in stuck_txs if tx.status == BridgeStatus.ADMIN_REVIEW),
+            "total_stuck_value": float(sum(tx.amount for tx in stuck_txs)),
+            "stuck_transactions": [
+                {
+                    "id": tx.id,
+                    "direction": tx.direction.value,
+                    "amount": float(tx.amount),
+                    "age_minutes": (datetime.utcnow() - tx.created_at).total_seconds() / 60,
+                    "retry_count": tx.retry_count,
+                    "status": tx.status.value,
+                    "error": tx.error,
+                    "admin_override": tx.admin_override
+                }
+                for tx in stuck_txs
+            ]
         }
 
 
