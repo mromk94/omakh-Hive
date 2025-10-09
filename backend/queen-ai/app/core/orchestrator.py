@@ -65,6 +65,7 @@ class QueenOrchestrator:
         self.monitoring_task: Optional[asyncio.Task] = None
         self.decision_task: Optional[asyncio.Task] = None
         self.staking_task: Optional[asyncio.Task] = None
+        self.data_pipeline_task: Optional[asyncio.Task] = None
     
     async def initialize(self):
         """Initialize all Queen AI components"""
@@ -128,6 +129,13 @@ class QueenOrchestrator:
             self.monitoring_task = asyncio.create_task(self._monitoring_loop())
             self.decision_task = asyncio.create_task(self._decision_loop())
             self.staking_task = asyncio.create_task(self._staking_rewards_loop())
+            self.data_pipeline_task = asyncio.create_task(self._data_pipeline_loop())
+            
+            logger.info("✅ Background tasks started:")
+            logger.info("   📊 Monitoring loop (system health)")
+            logger.info("   🧠 Decision loop (autonomous operations)")
+            logger.info("   💎 Staking rewards loop (daily distributions)")
+            logger.info("   🔄 Data pipeline loop (every 15 minutes)")
             
             logger.info("🎉 Queen AI Orchestrator fully initialized and operational")
             
@@ -148,6 +156,8 @@ class QueenOrchestrator:
             self.decision_task.cancel()
         if self.staking_task:
             self.staking_task.cancel()
+        if self.data_pipeline_task:
+            self.data_pipeline_task.cancel()
         
         # Shutdown components
         await self.hive_board.shutdown()
@@ -418,6 +428,42 @@ class QueenOrchestrator:
             
             # Check every 5 minutes
             await asyncio.sleep(300)
+    
+    async def _data_pipeline_loop(self):
+        """Background loop for automated data collection and sync"""
+        logger.info("📊 Starting data pipeline loop")
+        
+        # Wait 30 seconds for system to fully initialize
+        await asyncio.sleep(30)
+        
+        while self.running:
+            try:
+                logger.info("🔄 Running automated data pipeline")
+                
+                # Execute full data pipeline via DataPipelineBee
+                result = await self.bee_manager.execute_bee("data_pipeline", {
+                    "type": "run_pipeline"
+                })
+                
+                if result.get("success"):
+                    logger.info(
+                        "✅ Data pipeline completed successfully",
+                        duration=result.get("duration_seconds"),
+                        records=result.get("total_records"),
+                        files=result.get("csv_files_uploaded")
+                    )
+                else:
+                    logger.error(
+                        "❌ Data pipeline failed",
+                        error=result.get("error")
+                    )
+                
+            except Exception as e:
+                logger.error("Error in data pipeline loop", error=str(e), exc_info=True)
+            
+            # Wait 15 minutes before next run (900 seconds)
+            logger.info("⏰ Data pipeline sleeping for 15 minutes")
+            await asyncio.sleep(900)
     
     async def _execute_liquidity_decision(self, decision: Dict[str, Any]):
         """Execute a liquidity management decision"""
