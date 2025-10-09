@@ -21,6 +21,7 @@ from app.bees.private_sale_bee import PrivateSaleBee
 from app.bees.governance_bee import GovernanceBee
 from app.bees.visualization_bee import VisualizationBee
 from app.bees.bridge_bee import BridgeBee
+from app.bees.data_pipeline_bee import DataPipelineBee
 from app.integrations.elastic_search import ElasticSearchIntegration
 
 logger = structlog.get_logger(__name__)
@@ -104,6 +105,10 @@ class BeeManager:
             # Bridge Bee (Cross-Chain Bridge Orchestrator)
             self.bees["bridge"] = BridgeBee(bee_id=16)
             logger.info("✅ BridgeBee initialized")
+            
+            # Data Pipeline Bee (Automated Data Collection & Sync)
+            self.bees["data_pipeline"] = DataPipelineBee(bee_id=17)
+            logger.info("✅ DataPipelineBee initialized")
             
             # Provide LLM access to bees that need intelligent reasoning
             if self.llm:
