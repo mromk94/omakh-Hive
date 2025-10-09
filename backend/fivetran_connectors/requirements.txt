@@ -1,0 +1,12 @@
+# Fivetran Connectors Requirements
+
+# Fivetran SDK
+fivetran-connector-sdk>=1.0.0
+
+# Blockchain clients
+web3>=6.0.0
+solana>=0.30.0
+solders>=0.18.0
+
+# Utilities
+python-dotenv>=1.0.0
