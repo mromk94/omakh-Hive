@@ -1,0 +1,172 @@
+# Cloud Build Configuration for OMK Hive Queen AI
+# Automated CI/CD pipeline for GCP deployment
+
+# Build triggers:
+# - Push to main → deploy to staging
+# - Tag v*.*.* → deploy to production
+
+steps:
+  # Step 1: Install Python dependencies
+  - name: 'python:3.11-slim'
+    entrypoint: pip
+    args: ['install', '-r', 'core-requirements.txt', '--user']
+    id: 'install-deps'
+
+  # Step 2: Run linting
+  - name: 'python:3.11-slim'
+    entrypoint: python
+    args: ['-m', 'flake8', 'app/', '--max-line-length=120']
+    id: 'lint'
+    waitFor: ['install-deps']
+
+  # Step 3: Run type checking
+  - name: 'python:3.11-slim'
+    entrypoint: python
+    args: ['-m', 'mypy', 'app/', '--ignore-missing-imports']
+    id: 'type-check'
+    waitFor: ['install-deps']
+
+  # Step 4: Run unit tests
+  - name: 'python:3.11-slim'
+    entrypoint: python
+    args: ['-m', 'pytest', 'tests/', '-v', '--cov=app', '--cov-report=term-missing']
+    env:
+      - 'DATABASE_URL=sqlite:///test.db'
+      - 'REDIS_URL=redis://localhost:6379'
+      - 'ENVIRONMENT=test'
+    id: 'unit-tests'
+    waitFor: ['install-deps']
+
+  # Step 5: Run security scan
+  - name: 'python:3.11-slim'
+    entrypoint: pip
+    args: ['install', 'safety', '--user']
+    id: 'install-safety'
+  
+  - name: 'python:3.11-slim'
+    entrypoint: python
+    args: ['-m', 'safety', 'check', '--json']
+    id: 'security-scan'
+    waitFor: ['install-safety']
+
+  # Step 6: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/omk-queen-ai:$BRANCH_NAME',
+      '-t', 'gcr.io/$PROJECT_ID/omk-queen-ai:latest',
+      '--cache-from', 'gcr.io/$PROJECT_ID/omk-queen-ai:latest',
+      '.'
+    ]
+    id: 'build-image'
+    waitFor: ['unit-tests', 'lint', 'type-check']
+
+  # Step 7: Push Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA']
+    id: 'push-image'
+    waitFor: ['build-image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/omk-queen-ai:$BRANCH_NAME']
+    waitFor: ['push-image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/omk-queen-ai:latest']
+    waitFor: ['push-image']
+
+  # Step 8: Run container vulnerability scanning
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'container', 'images', 'scan',
+      'gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA'
+    ]
+    id: 'container-scan'
+    waitFor: ['push-image']
+
+  # Step 9: Deploy to Cloud Run (staging)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'run', 'deploy', 'omk-queen-ai-staging',
+      '--image', 'gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--set-env-vars', 'ENVIRONMENT=staging',
+      '--add-cloudsql-instances', '$PROJECT_ID:us-central1:omk-hive-db-staging',
+      '--memory', '512Mi',
+      '--cpu', '1',
+      '--max-instances', '5',
+      '--min-instances', '0'
+    ]
+    id: 'deploy-staging'
+    waitFor: ['container-scan']
+
+  # Step 10: Run integration tests against staging
+  - name: 'python:3.11-slim'
+    entrypoint: python
+    args: ['-m', 'pytest', 'integration_tests/', '-v', '--base-url=https://omk-queen-ai-staging-xxxxx.run.app']
+    env:
+      - 'TEST_API_KEY=$_STAGING_API_KEY'
+    id: 'integration-tests'
+    waitFor: ['deploy-staging']
+
+  # Step 11: Deploy to GKE (production) - Only on tagged releases
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args: [
+      'run',
+      '--filename=k8s/',
+      '--image=gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA',
+      '--location=us-central1',
+      '--cluster=omk-hive-cluster-prod',
+      '--namespace=production'
+    ]
+    id: 'deploy-gke-prod'
+    waitFor: ['integration-tests']
+
+  # Step 12: Notify deployment success
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Deployment successful!"
+        echo "Image: gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA"
+        echo "Branch: $BRANCH_NAME"
+        echo "Commit: $SHORT_SHA"
+    id: 'notify-success'
+    waitFor: ['deploy-gke-prod']
+
+# Images to push to Artifact Registry
+images:
+  - 'gcr.io/$PROJECT_ID/omk-queen-ai:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/omk-queen-ai:$BRANCH_NAME'
+  - 'gcr.io/$PROJECT_ID/omk-queen-ai:latest'
+
+# Build options
+options:
+  # Use a larger machine for faster builds
+  machineType: 'N1_HIGHCPU_8'
+  
+  # Use Docker layer caching
+  substitution_option: 'ALLOW_LOOSE'
+  
+  # Logging
+  logging: CLOUD_LOGGING_ONLY
+  
+  # Build timeout (30 minutes)
+  timeout: '1800s'
+
+# Substitutions (variables)
+substitutions:
+  _STAGING_API_KEY: 'staging-api-key-from-secret-manager'
+
+# Build tags for filtering
+tags:
+  - 'omk-queen-ai'
+  - 'backend'
+  - 'ai'
+
+# Service account for Cloud Build
+# serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/cloud-build@$PROJECT_ID.iam.gserviceaccount.com'

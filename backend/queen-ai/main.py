@@ -1,33 +1,61 @@
-import os
-import logging
+"""
+Queen AI - Main Application Entry Point
+Integrates with all 16 PRIME2 Ethereum contracts
+"""
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
+from app.config.settings import settings
+from app.config.logging_config import setup_logging, get_logger
+from app.core.orchestrator import QueenOrchestrator
+
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Setup structured logging
+setup_logging()
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown"""
+    logger.info("🚀 Starting Queen AI Orchestrator")
+    
+    # Initialize Queen Orchestrator
+    queen = QueenOrchestrator()
+    await queen.initialize()
+    
+    # Store in app state
+    app.state.queen = queen
+    
+    logger.info("✅ Queen AI ready and operational")
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Shutting down Queen AI")
+    await queen.shutdown()
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="OMK Hive - Queen AI",
-        description="Central Orchestrator for the OMK Hive AI Ecosystem",
-        version="0.1.0",
+        description="Central AI orchestration system for OMK Hive ecosystem",
+        version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # In production, replace with specific origins
+        allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -40,20 +68,34 @@ def create_app() -> FastAPI:
     # Health check endpoint
     @app.get("/health")
     async def health_check():
+        """Health check endpoint"""
+        health = {"status": "starting"}
+        
+        if hasattr(app.state, "queen"):
+            health = await app.state.queen.get_system_health()
+        
         return {
-            "status": "healthy",
-            "version": "0.1.0",
-            "environment": os.getenv("ENVIRONMENT", "development")
+            "service": "Queen AI Orchestrator",
+            "version": "1.0.0",
+            "environment": settings.ENVIRONMENT,
+            **health
         }
 
     # Root endpoint
     @app.get("/")
     async def root():
+        """Root endpoint"""
         return {
-            "message": "Welcome to OMK Hive - Queen AI Service",
+            "service": "OMK Hive - Queen AI",
+            "version": "1.0.0",
             "status": "operational",
-            "version": "0.1.0",
-            "docs": "/docs"
+            "docs": "/docs",
+            "health": "/health",
+            "contracts": {
+                "bee_spawner": settings.BEE_SPAWNER_ADDRESS,
+                "omk_bridge": settings.OMK_BRIDGE_ADDRESS,
+                "treasury_vault": settings.TREASURY_VAULT_ADDRESS,
+            }
         }
 
     return app
