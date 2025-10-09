@@ -67,3 +67,12 @@ solana==0.34.4  # Solana Python SDK
 solders==0.20.0  # Solana Rust bindings
 eth-account==0.10.0  # Ethereum account management
 eth-typing==3.6.0  # Ethereum type hints
+
+# AI Accelerate Hackathon - Elastic Search Integration
+elasticsearch==8.11.0  # Elastic Search client
+elasticsearch[async]==8.11.0  # Async support for Elastic
+
+# AI Accelerate Hackathon - Fivetran & Google Cloud
+fivetran-connector-sdk==1.1.3  # Fivetran custom connectors
+google-cloud-bigquery==3.14.1  # BigQuery for analytics
+google-cloud-aiplatform==1.40.0  # Vertex AI for ML predictions
