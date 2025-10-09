@@ -24,7 +24,7 @@
     "@openzeppelin/contracts-upgradeable": "4.9.5"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
+    "@nomicfoundation/hardhat-network-helpers": "^3.0.1",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@openzeppelin/hardhat-upgrades": "^1.22.1",
