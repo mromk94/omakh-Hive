@@ -152,6 +152,27 @@ class SystemLifecycleManager:
         """Initialize database, Redis, and core infrastructure"""
         logger.info("🔧 Initializing infrastructure...")
         
+        # Initialize stateless architecture manager
+        try:
+            from app.core.stateless_architecture import stateless_manager
+            from app.core.distributed_lock import distributed_lock
+            from app.core.session_manager import session_manager
+            
+            # Startup recovery (restore state from previous instances)
+            await stateless_manager.startup_recovery()
+            
+            # Initialize distributed locking
+            await distributed_lock.initialize()
+            
+            # Initialize session manager
+            await session_manager.initialize()
+            
+            logger.info("✅ Stateless architecture initialized")
+            self.components["stateless"] = {"status": "running", "manager": stateless_manager}
+            
+        except Exception as e:
+            logger.warning(f"Stateless architecture initialization failed: {str(e)}")
+        
         # Database
         try:
             from app.db.base import engine, init_db

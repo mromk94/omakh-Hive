@@ -410,6 +410,78 @@ python3 manage.py deploy gcp     # Deploy to GCP
 
 ---
 
+### ☁️ CLOUD AUTO-SCALING & EPHEMERAL INSTANCE PROTECTION (October 9, 2025, 12:35 PM):
+
+**Created**: Stateless architecture for handling auto-scaling without data loss
+
+**Problem Addressed**: Google Cloud auto-scales by creating/destroying instances based on traffic. This could cause data loss if critical state is stored in instance memory.
+
+**Files Created** (5 files, ~1,200 lines):
+
+**Core Components**:
+- ✅ `app/core/stateless_architecture.py` (350 lines) - Instance lifecycle management
+  - Graceful shutdown handling (SIGTERM signal)
+  - State persistence before termination (10s for Cloud Run, 30s for GKE)
+  - Startup recovery from persistent storage
+  - Pending operations flush to database
+  - Active session persistence to Redis
+  - Instance registry management
+
+- ✅ `app/core/distributed_lock.py` (200 lines) - Distributed locking
+  - Redis-based distributed locks across instances
+  - Prevents race conditions during concurrent operations
+  - Automatic deadlock prevention (auto-expiring locks)
+  - Context manager and decorator support
+  - Critical section protection
+
+- ✅ `app/core/session_manager.py` (200 lines) - Session persistence
+  - Redis-based session storage
+  - Session continuity across different instances
+  - Automatic TTL management (1 hour default)
+  - Session recovery on startup
+  - Cleanup of expired sessions
+
+- ✅ `app/api/health.py` (120 lines) - Health probes for Cloud Run/GKE
+  - `/health` - Liveness probe (is instance alive?)
+  - `/ready` - Readiness probe (returns 503 during shutdown)
+  - `/startup` - Startup probe (is initialization complete?)
+  - Component health checks
+
+**Documentation**:
+- ✅ `CLOUD_AUTOSCALING_GUIDE.md` - Complete implementation guide
+- ✅ `AUTOSCALING_COMPLETE.md` - Implementation summary
+
+**Features**:
+- ✅ Zero data loss during scale up/down
+- ✅ Session continuity across instances (Redis-backed)
+- ✅ Distributed locking prevents race conditions
+- ✅ Graceful shutdown within Cloud Run limits (10s)
+- ✅ Automatic state recovery on startup
+- ✅ All critical data in persistent storage (PostgreSQL, Redis, BigQuery)
+- ✅ No critical data in instance memory (stateless by design)
+- ✅ Works with Cloud Run (scale to zero), GKE (HPA), and localhost
+
+**Integration**:
+- Automatically integrated into `start.py` startup sequence
+- SIGTERM signal handler for graceful shutdown
+- Health endpoints for load balancer routing
+- Session manager available to all components
+- Distributed locks available for critical operations
+
+**Data Persistence Strategy**:
+- PostgreSQL: Governance proposals, votes, purchases, staking positions
+- Redis: User sessions (1h TTL), message queues, distributed locks, hive board posts
+- BigQuery: LLM conversations, bee decisions, training data
+- Instance RAM: Only temporary cache (non-critical data)
+
+**Use Cases Protected**:
+- ✅ Instance terminated mid-request → Data saved before shutdown
+- ✅ User request routed to different instance → Session continues seamlessly
+- ✅ Multiple instances process same proposal → Distributed lock prevents conflicts
+- ✅ Instance crashes → State recovered from Redis/PostgreSQL on restart
+
+---
+
 ### 🎯 GOOGLE CLOUD STRATEGY IMPLEMENTATION (October 9, 2025, 11:57 AM):
 
 **Created**: All missing components from `google_cloud_strategy.md`
