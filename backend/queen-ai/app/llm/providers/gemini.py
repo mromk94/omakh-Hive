@@ -27,7 +27,7 @@ class GeminiProvider:
     def __init__(self):
         self.model = None
         self.initialized = False
-        self.model_name = "gemini-1.5-flash"  # Default to Flash
+        self.model_name = "gemini-2.0-flash"  # Default to Flash (current version)
     
     async def initialize(self):
         """Initialize Gemini provider"""
