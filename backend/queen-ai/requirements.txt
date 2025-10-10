@@ -34,7 +34,7 @@ eth-utils==2.3.1
 pandas==2.2.3
 numpy==2.2.1
 # Using Pydantic 2.5.0 with compatible pydantic-settings
-pydantic>=2.5.0,<3.0.0
+pydantic[email]>=2.5.0,<3.0.0
 pydantic-settings>=2.1.0,<3.0.0
 
 # Logging and Monitoring

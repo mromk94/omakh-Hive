@@ -293,10 +293,37 @@ class UserExperienceBee(BaseBee):
         user_input = data.get("user_input", "").lower()
         context = data.get("context", {})
         
-        # Simple keyword-based responses (in production, use LLM)
-        if "help" in user_input or "stuck" in user_input:
+        # Greetings
+        if any(word in user_input for word in ["hello", "hi", "hey", "greetings", "good morning", "good evening"]):
+            return {
+                "success": True,
+                "message": "Hello! 👋 Welcome to OMK Hive!\n\nI'm your Queen AI assistant. I can help you with:\n• Understanding OMK and how it works\n• Calculating potential returns\n• Connecting your wallet\n• Investing in tokenized real estate\n\nWhat would you like to explore?",
+                "suggestions": [
+                    {"label": "📖 Tell me about OMK", "action": "show_about", "data": {"title": "About OMK", "icon": "🏰"}},
+                    {"label": "🔢 Calculate my returns", "action": "show_roi_calculator"},
+                    {"label": "🔗 Connect my wallet", "action": "connect_wallet"},
+                    {"label": "🏠 Browse properties", "action": "show_properties"}
+                ]
+            }
+        
+        # About / Tell me about
+        elif any(phrase in user_input for phrase in ["about you", "who are you", "what are you", "tell me about yourself", "what is this", "what is omk"]):
+            return {
+                "success": True,
+                "message": "I'm Queen AI! 👑🐝\n\nI manage the OMK Hive ecosystem - a platform where you can:\n• Invest in **tokenized real estate** 🏠\n• Earn **passive income** from Airbnb properties 💰\n• Start with as little as **$100** 💵\n• Own fractional shares of properties worldwide 🌍\n\nI work 24/7 to optimize liquidity, manage staking rewards, and keep your investments secure!\n\nWant to learn more about how it works?",
+                "suggestions": [
+                    {"label": "📚 How does it work?", "action": "show_about", "data": {"title": "How It Works", "icon": "⚡"}},
+                    {"label": "🏠 Show me properties", "action": "show_properties"},
+                    {"label": "🔢 Calculate potential returns", "action": "show_roi_calculator"},
+                    {"label": "🔗 Connect wallet", "action": "connect_wallet"}
+                ]
+            }
+        
+        # Help
+        elif "help" in user_input or "stuck" in user_input:
             return await self._get_quick_help(data)
         
+        # Price
         elif "price" in user_input or "cost" in user_input:
             return {
                 "success": True,
@@ -308,24 +335,91 @@ class UserExperienceBee(BaseBee):
                 ]
             }
         
-        elif "roi" in user_input or "return" in user_input:
+        # ROI / Returns
+        elif "roi" in user_input or "return" in user_input or "earn" in user_input or "profit" in user_input:
             return await self._get_info_snippet({"snippet_id": "roi"})
         
-        elif "safe" in user_input or "security" in user_input:
+        # Security / Safety
+        elif "safe" in user_input or "security" in user_input or "trust" in user_input:
             return await self._get_info_snippet({"snippet_id": "security"})
         
-        elif "how" in user_input and "work" in user_input:
+        # How it works
+        elif ("how" in user_input and "work" in user_input) or "explain" in user_input:
             return await self._get_info_snippet({"snippet_id": "how_it_works"})
         
+        # Wallet / Connect
+        elif "wallet" in user_input or "connect" in user_input:
+            return {
+                "success": True,
+                "message": "Let's connect your wallet! 🔗\n\nYou'll need either:\n• MetaMask (Ethereum) 💎\n• Phantom (Solana) ⚡\n\nConnecting your wallet allows you to:\n✅ View your portfolio\n✅ Invest in properties\n✅ Track earnings\n✅ Claim rewards\n\nReady to connect?",
+                "suggestions": [
+                    {"label": "✅ Yes, connect wallet", "action": "connect_wallet"},
+                    {"label": "❓ I don't have a wallet", "action": "ask_teacher_bee"},
+                    {"label": "📚 What's a wallet?", "action": "ask_teacher_bee"},
+                    {"label": "🏠 Browse properties first", "action": "show_properties"}
+                ]
+            }
+        
+        # Invest / Buy / Start
+        elif any(word in user_input for word in ["invest", "buy", "start", "begin", "property", "properties"]):
+            return {
+                "success": True,
+                "message": "Awesome! Let's get you started investing! 🚀\n\n**Quick Process:**\n1️⃣ Connect your wallet\n2️⃣ Browse available properties\n3️⃣ Choose how many blocks to buy\n4️⃣ Start earning passive income!\n\nWant to see available properties?",
+                "suggestions": [
+                    {"label": "🏠 Show me properties", "action": "show_properties"},
+                    {"label": "🔢 Calculate my returns first", "action": "show_roi_calculator"},
+                    {"label": "🔗 Connect wallet", "action": "connect_wallet"},
+                    {"label": "📖 Tell me more", "action": "show_about", "data": {"title": "About Investing", "icon": "💰"}}
+                ]
+            }
+        
+        # Dashboard / Portfolio
+        elif any(word in user_input for word in ["dashboard", "portfolio", "balance", "holdings", "my account"]):
+            return {
+                "success": True,
+                "message": "Let me show you your portfolio dashboard! 📊\n\nYou'll see:\n• Total portfolio value\n• Your holdings (crypto + real estate)\n• Recent transactions\n• Earnings overview\n\nNote: You need to connect your wallet first!",
+                "suggestions": [
+                    {"label": "🔗 Connect wallet", "action": "connect_wallet"},
+                    {"label": "📊 View demo dashboard", "action": "show_dashboard"},
+                    {"label": "🏠 Browse properties", "action": "show_properties"}
+                ]
+            }
+        
+        # Private Sale
+        elif any(phrase in user_input for phrase in ["private sale", "presale", "token sale", "ico", "early access"]):
+            return {
+                "success": True,
+                "message": "Interested in our Private Sale? 🎯\n\n**Why Join?**\n• Lowest token price ($0.100)\n• 15% bonus tokens\n• Early platform access\n• Priority support\n\n**Requirements:**\n• Minimum $500 investment\n• KYC verification\n• Vesting: 20% at TGE, rest over 6 months\n\nWant to learn more?",
+                "suggestions": [
+                    {"label": "🎯 View private sale", "action": "show_private_sale"},
+                    {"label": "📊 See all tiers", "action": "show_tiers"},
+                    {"label": "🔢 Calculate allocation", "action": "show_roi_calculator"},
+                    {"label": "📚 Learn about tokenomics", "action": "show_about", "data": {"title": "Tokenomics", "icon": "💎"}}
+                ]
+            }
+        
+        # Swap / Buy tokens
+        elif any(word in user_input for word in ["swap", "buy omk", "token", "purchase"]):
+            return {
+                "success": True,
+                "message": "Let's get you some OMK tokens! 💰\n\nYou can:\n• Swap ETH/USDT for OMK\n• See real-time prices\n• Calculate slippage\n• Execute instantly\n\nReady to swap?",
+                "suggestions": [
+                    {"label": "💱 Open swap interface", "action": "show_swap"},
+                    {"label": "💰 What's the price?", "action": "show_about", "data": {"title": "Token Price", "icon": "💰"}},
+                    {"label": "🔗 Connect wallet first", "action": "connect_wallet"}
+                ]
+            }
+        
+        # Generic fallback with better response
         else:
             return {
                 "success": True,
-                "message": f"Interesting! Let me help you with that... 🤔\n\nCould you tell me more about what you'd like to know?",
+                "message": f"I want to make sure I understand you correctly! 🤔\n\nCould you rephrase that, or choose from these popular topics?",
                 "suggestions": [
-                    "What is OMK?",
-                    "How does it work?",
-                    "Is it safe?",
-                    "Expected returns?"
+                    {"label": "📖 What is OMK?", "action": "show_about", "data": {"title": "About OMK", "icon": "🏰"}},
+                    {"label": "📚 How does it work?", "action": "show_about", "data": {"title": "How It Works", "icon": "⚡"}},
+                    {"label": "🏠 Show me properties", "action": "show_properties"},
+                    {"label": "🔢 Calculate returns", "action": "show_roi_calculator"}
                 ]
             }
     

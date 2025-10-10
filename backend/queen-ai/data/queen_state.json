@@ -1,0 +1,11 @@
+{
+  "daily_transfers": 0,
+  "last_reset": null,
+  "operation_count": 1,
+  "last_decision": {
+    "type": "staking_rewards",
+    "amount": 0,
+    "timestamp": "2025-10-10T00:00:18.554722"
+  },
+  "metrics": {}
+}

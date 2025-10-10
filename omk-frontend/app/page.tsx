@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Globe } from 'lucide-react';
 import { frontendAPI } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 
@@ -33,11 +32,16 @@ export default function GreetingScreen() {
       })
       .catch(err => {
         console.error('Failed to load greetings:', err);
-        // Fallback greetings
+        // Fallback with ALL 8 languages
         const fallback = {
           en: { text: 'Hello', flag: '🇬🇧', name: 'English' },
           es: { text: 'Hola', flag: '🇪🇸', name: 'Spanish' },
           zh: { text: '你好', flag: '🇨🇳', name: 'Chinese' },
+          ja: { text: 'こんにちは', flag: '🇯🇵', name: 'Japanese' },
+          pcm: { text: 'How far', flag: '🇳🇬', name: 'Nigerian Pidgin' },
+          fr: { text: 'Bonjour', flag: '🇫🇷', name: 'French' },
+          ru: { text: 'Привет', flag: '🇷🇺', name: 'Russian' },
+          ar: { text: 'مرحبا', flag: '🇸🇦', name: 'Arabic' },
         };
         setGreetings(fallback);
         setGreetingKeys(Object.keys(fallback));
@@ -45,20 +49,20 @@ export default function GreetingScreen() {
       });
   }, []);
 
-  // Rotate greetings every 3 seconds
+  // Rotate greetings every 2.5 seconds
   useEffect(() => {
     if (greetingKeys.length === 0) return;
     
     const timer = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % greetingKeys.length);
-    }, 3000);
+    }, 2500);
     
     return () => clearInterval(timer);
   }, [greetingKeys]);
 
-  // Show language selector after 5 seconds
+  // Show language selector after 4 seconds
   useEffect(() => {
-    const timer = setTimeout(() => setShowLanguageSelector(true), 5000);
+    const timer = setTimeout(() => setShowLanguageSelector(true), 4000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -69,8 +73,14 @@ export default function GreetingScreen() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-4xl">✨</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="text-6xl"
+        >
+          👑
+        </motion.div>
       </div>
     );
   }
@@ -78,114 +88,146 @@ export default function GreetingScreen() {
   const currentGreeting = greetingKeys[currentIndex] ? greetings[greetingKeys[currentIndex]] : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col items-center justify-center p-4 overflow-hidden relative">
-      {/* Floating background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden relative">
+      {/* MASSIVE Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
         <motion.div
           animate={{
-            y: [0, -30, 0],
-            x: [0, 20, 0],
+            scale: [1, 1.2, 1],
+            rotate: [0, 180, 360],
+            x: [0, 100, 0],
+            y: [0, -100, 0],
           }}
           transition={{
-            duration: 8,
+            duration: 20,
             repeat: Infinity,
-            ease: "easeInOut",
+            ease: "linear",
           }}
-          className="absolute top-20 left-10 w-32 h-32 bg-blue-200/30 rounded-full blur-3xl"
+          className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-yellow-600 to-amber-700 rounded-full blur-3xl"
         />
         <motion.div
           animate={{
-            y: [0, 40, 0],
-            x: [0, -30, 0],
+            scale: [1, 1.3, 1],
+            rotate: [360, 180, 0],
+            x: [0, -100, 0],
+            y: [0, 100, 0],
           }}
           transition={{
-            duration: 10,
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.4, 1],
+            x: [0, 150, -150, 0],
+            y: [0, -150, 150, 0],
+          }}
+          transition={{
+            duration: 30,
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="absolute bottom-20 right-10 w-40 h-40 bg-purple-200/30 rounded-full blur-3xl"
+          className="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-gradient-to-br from-amber-600 to-yellow-800 rounded-full blur-3xl"
         />
       </div>
 
-      {/* Animated Greeting */}
-      <AnimatePresence mode="wait">
-        {currentGreeting && (
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: -20 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="text-center z-10"
-          >
-            <motion.h1 
-              className="text-7xl md:text-9xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6"
-              animate={{
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-              }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-              style={{
-                backgroundSize: '200% 200%',
-              }}
+      {/* HUGE Animated Greeting */}
+      <div className="z-10 text-center space-y-8">
+        <AnimatePresence mode="wait">
+          {currentGreeting && (
+            <motion.div
+              key={currentIndex}
+              initial={{ opacity: 0, scale: 0.5, rotateX: -90 }}
+              animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotateX: 90 }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="perspective-1000"
             >
-              {currentGreeting.text}
-            </motion.h1>
-            <motion.p 
-              className="text-3xl md:text-4xl text-gray-600 flex items-center justify-center gap-3"
+              <motion.h1 
+                className="text-8xl md:text-[12rem] lg:text-[15rem] font-black mb-4 leading-none"
+                style={{
+                  background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)',
+                  backgroundSize: '200% 200%',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: '0 0 80px rgba(234,179,8,0.5), 0 0 120px rgba(245,158,11,0.8)',
+                }}
+                animate={{
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                  textShadow: [
+                    '0 0 80px rgba(234,179,8,0.5), 0 0 120px rgba(245,158,11,0.8)',
+                    '0 0 100px rgba(234,179,8,0.8), 0 0 150px rgba(245,158,11,1)',
+                    '0 0 80px rgba(234,179,8,0.5), 0 0 120px rgba(245,158,11,0.8)',
+                  ],
+                }}
+                transition={{
+                  backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" },
+                  textShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                }}
+              >
+                {currentGreeting.text}
+              </motion.h1>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Subtitle */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="text-stone-400 text-2xl md:text-3xl font-light mt-8"
+        >
+          Welcome to the Future of Finance
+        </motion.p>
+      </div>
+
+      {/* BOLD Language Selector */}
+      <AnimatePresence>
+        {showLanguageSelector && (
+          <motion.div
+            initial={{ opacity: 0, y: 100, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, type: "spring" }}
+            className="mt-16 z-20 w-full max-w-6xl px-4"
+          >            
+            {/* Small Pulsating Flags - Simple */}
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
+              className="flex flex-wrap justify-center gap-4"
             >
-              <span className="text-5xl">{currentGreeting.flag}</span>
-              <span>{currentGreeting.name}</span>
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Language Selector Button */}
-      <AnimatePresence>
-        {showLanguageSelector && !loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="mt-20 z-10"
-          >
-            <motion.button
-              onClick={() => setShowLanguageSelector(prev => !prev)}
-              whileHover={{ scale: 1.05, y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-10 py-5 bg-white rounded-full shadow-2xl hover:shadow-3xl transition-all flex items-center gap-4 animate-float"
-            >
-              <Globe className="w-8 h-8 text-blue-600" />
-              <span className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Choose Your Language
-              </span>
-            </motion.button>
-            
-            {/* Language Grid */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8"
-            >
-              {greetingKeys.map((key) => (
+              {greetingKeys.map((key, idx) => (
                 <motion.button
                   key={key}
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{ 
+                    delay: 0.1 * idx,
+                    scale: {
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }
+                  }}
+                  whileHover={{ scale: 1.3 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => handleLanguageSelect(key)}
-                  className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all border-2 border-transparent hover:border-purple-300"
+                  className="text-5xl transition-all"
+                  style={{
+                    filter: 'drop-shadow(0 0 20px rgba(234, 179, 8, 0.6))'
+                  }}
+                  title={greetings[key].name}
                 >
-                  <div className="text-5xl mb-3">{greetings[key].flag}</div>
-                  <div className="text-base font-semibold text-gray-800">{greetings[key].name}</div>
-                  <div className="text-2xl font-bold text-gray-400 mt-1">{greetings[key].text}</div>
+                  {greetings[key].flag}
                 </motion.button>
               ))}
             </motion.div>
@@ -193,16 +235,29 @@ export default function GreetingScreen() {
         )}
       </AnimatePresence>
 
-      {/* Bottom hint */}
+      {/* Pulsing dots indicator */}
       {!showLanguageSelector && (
-        <motion.p
+        <motion.div
+          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-3"
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-10 text-gray-400 text-sm"
+          animate={{ opacity: 1 }}
         >
-          Language selector appearing soon...
-        </motion.p>
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-3 h-3 rounded-full bg-yellow-500/60"
+              animate={{
+                scale: [1, 1.5, 1],
+                opacity: [0.6, 1, 0.6],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                delay: i * 0.2,
+              }}
+            />
+          ))}
+        </motion.div>
       )}
     </div>
   );

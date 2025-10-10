@@ -62,9 +62,7 @@ class EthereumClient:
             # Create async Web3 instance
             self.w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider(self.rpc_url))
             
-            # Add POA middleware for testnets (Goer
-
-li, Sepolia)
+            # Add POA middleware for testnets (Goerli, Sepolia)
             self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
             
             # Test connection

@@ -543,6 +543,49 @@ class BridgeBee(BaseBee):
             recommendations.append("OK: Bridge operating normally")
         
         return recommendations
+    
+    async def execute(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute bridge-specific tasks
+        
+        Args:
+            task_data: Task parameters with 'type' field
+            
+        Returns:
+            Result dictionary
+        """
+        task_type = task_data.get("type", "unknown")
+        
+        try:
+            if task_type == "get_status":
+                return await self.get_comprehensive_status()
+            
+            elif task_type == "monitor_transaction":
+                tx_hash = task_data.get("tx_hash")
+                if not tx_hash:
+                    return {"success": False, "error": "Missing tx_hash"}
+                return await self.monitor_bridge_transaction(tx_hash)
+            
+            elif task_type == "health_check":
+                health = await self.health_check()
+                return {"success": True, "health": health}
+            
+            elif task_type == "get_stats":
+                stats = await self.get_bridge_stats()
+                return {"success": True, "stats": stats}
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown task type: {task_type}"
+                }
+                
+        except Exception as e:
+            logger.error(f"BridgeBee execute error: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 
 # Global instance

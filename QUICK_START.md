@@ -1,10 +1,13 @@
-# 🚀 OMK HIVE - Quick Start Guide
+# 🚀# 👑 OMK Hive - Quick Start Guide
+
+## 🚀 **ONE-COMMAND STARTUP**
+
+Start everything (Queen AI + Frontend) with one command:
 
 ## Prerequisites
 - ✅ Elastic Search configured (already done)
 - ✅ Fivetran GCS connector set up (already done)
 - ✅ Google Cloud authentication
-
 ---
 
 ## Step 1: Authenticate with Google Cloud

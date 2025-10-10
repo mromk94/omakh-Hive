@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import Web3Provider from '@/components/providers/Web3Provider'
+import AppShell from '@/components/layout/AppShell'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'OMK Hive - AI-Governed Token Economy',
-  description: 'Join the future of decentralized finance with AI-powered token management',
+  title: 'OMK Hive - Real Estate Investment Platform',
+  description: 'Invest in fractional real estate and earn passive income powered by blockchain',
 }
 
 export default function RootLayout({
@@ -16,7 +18,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <Web3Provider>
+          {children}
+          <AppShell />
+        </Web3Provider>
+      </body>
     </html>
   )
 }
