@@ -1,16 +1,21 @@
 """
 Queen AI - Main Application Entry Point
-Integrates with all 16 PRIME2 Ethereum contracts
+Integrates with all 16 PRIME2 Ethereum contracts + MySQL Database
 """
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.middleware.csrf_protection import DoubleSubmitCSRFMiddleware
 from dotenv import load_dotenv
 
 from app.config.settings import settings
 from app.config.logging_config import setup_logging, get_logger
 from app.core.orchestrator import QueenOrchestrator
+
+# Database imports
+from app.database.connection import init_db
+from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
@@ -25,12 +30,38 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown"""
     logger.info("🚀 Starting Queen AI Orchestrator")
     
+    # Initialize Database - FAIL FAST on critical errors
+    try:
+        logger.info("🗄️  Initializing MySQL database...")
+        # Only init schema if in development mode
+        if settings.ENVIRONMENT == "development":
+            init_db()
+            logger.info("✅ Database schema initialized")
+        else:
+            # In production, just test the connection
+            from app.database.connection import SessionLocal
+            db = SessionLocal()
+            try:
+                db.execute(text("SELECT 1"))
+                logger.info("✅ Database connection verified")
+            finally:
+                db.close()
+    except Exception as e:
+        logger.critical(f"❌ CRITICAL: Database connection failed: {e}")
+        logger.critical("⚠️  Cannot start without database. Please check DB_* environment variables.")
+        # FAIL FAST - don't start the application without a database
+        raise RuntimeError(f"Database connection failed: {e}") from e
+    
     # Initialize Queen Orchestrator
     queen = QueenOrchestrator()
     await queen.initialize()
     
     # Store in app state
     app.state.queen = queen
+    
+    # Register queen instance for WebSocket access
+    from app.api.v1.websocket import set_queen_instance
+    set_queen_instance(queen)
     
     logger.info("✅ Queen AI ready and operational")
     
@@ -60,10 +91,27 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Add CSRF Protection (after CORS)
+    app.add_middleware(DoubleSubmitCSRFMiddleware)
+    logger.info("🛡️ CSRF protection enabled")
 
     # Include routers
-    from app.api.v1 import router as api_router
-    app.include_router(api_router, prefix="/api/v1")
+    from app.api.v1 import auth, queen, queen_dev, admin, frontend, market, notifications, claude_analysis, contracts, websocket, autonomous_dev, proposal_auto_fix
+    from app.api.v1.auth import router as auth_router
+    
+    app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
+    app.include_router(admin.router, prefix="/api/v1")
+    app.include_router(frontend.router, prefix="/api/v1")
+    app.include_router(market.router, prefix="/api/v1")
+    app.include_router(notifications.router, prefix="/api/v1/admin")
+    app.include_router(claude_analysis.router, prefix="/api/v1/admin")
+    app.include_router(proposal_auto_fix.router, prefix="/api/v1/admin/proposals", tags=["Auto-Fix"])
+    app.include_router(contracts.router, prefix="/api/v1")
+    app.include_router(websocket.router, tags=["WebSocket"])
+    app.include_router(queen.router, prefix="/api/v1")
+    app.include_router(queen_dev.router, prefix="/api/v1/queen-dev")
+    app.include_router(autonomous_dev.router, prefix="/api/v1")
 
     # Health check endpoint
     @app.get("/health")
@@ -105,10 +153,15 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    # Use PORT environment variable (Google Cloud compatible)
+    port = int(os.getenv("PORT", "8001"))
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,  # Changed from 8000 to 8001
-        reload=True,
+        port=port,
+        reload=settings.DEBUG,  # Only reload in debug mode
         log_level="info"
     )
