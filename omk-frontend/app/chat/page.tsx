@@ -282,7 +282,12 @@ export default function ChatInterface() {
           
           // Add recommendations as buttons
           setTimeout(() => {
-            addMessage('ai', '💡 Here are some things I can help you with:', actionButtons);
+            const availableActions = actionButtons.filter((btn: any) => 
+              !['show_properties', 'show_staking', 'show_governance'].includes(btn.action)
+            );
+            if (availableActions.length > 0) {
+              addMessage('ai', '💡 Here are some things I can help you with:', availableActions);
+            }
           }, 400);
         }
         
@@ -322,9 +327,9 @@ export default function ChatInterface() {
         setFlowState({ type: null, data: {} });
         setTimeout(() => {
           addMessage('ai', `🎉 Welcome back! You\'re logged in!\n\nWhat would you like to do?`, [
-            { label: '📊 View my dashboard', action: 'show_dashboard' },
-            { label: '🏠 Browse properties', action: 'show_properties' },
-            { label: '💎 Get OMK tokens', action: 'show_get_omk' }
+            { label: '🔗 Connect Wallet', action: 'connect_wallet' },
+            { label: '💎 Get OMK tokens', action: 'show_swap' },
+            { label: '📚 Learn more', action: 'show_roi_calculator' }
           ]);
           setLoading(false);
         }, 800);
@@ -490,7 +495,12 @@ export default function ChatInterface() {
       }
     } else if (option.action === 'show_properties') {
       addMessage('user', option.label);
-      addMessage('ai', 'Here are our premium investment properties! 🏠', [{ type: 'property_browser' }]);
+      // 🚧 COMING SOON: Property browsing needs backend API (FPRIME-2)
+      addMessage('ai', '🏠 **Property Investment Coming Soon!**\n\nWe\'re preparing our luxury real estate portfolio for you! Properties will be available shortly after our Token Generation Event (TGE).\n\nIn the meantime, you can:', [
+        { label: '💎 Get OMK Tokens (Pre-sale)', action: 'show_swap' },
+        { label: '📚 Learn about investing', action: 'show_roi_calculator' },
+        { label: '🔗 Connect your wallet', action: 'connect_wallet' }
+      ]);
     } else if (option.action === 'ask_teacher_bee') {
       addMessage('user', option.label);
       trackConversion('wallet_education_started');
@@ -1663,10 +1673,10 @@ Everything you need to know about investing, earning, and withdrawing.`,
                         userName={flowState.data?.name || 'there'}
                         onComplete={() => {
                           trackConversion('onboarding_completed');
-                          addMessage('ai', '🎯 Perfect! Now let\'s get you some OMK tokens!', [
-                            { label: '💎 Get OMK Tokens', action: 'show_get_omk' },
-                            { label: '🏠 Browse Properties', action: 'show_properties' },
-                            { label: '📊 Calculate Returns', action: 'show_roi_calculator' }
+                          addMessage('ai', '🎯 Perfect! Now you\'re ready to get started!', [
+                            { label: '💎 Get OMK Tokens', action: 'show_swap' },
+                            { label: '📊 Calculate Returns', action: 'show_roi_calculator' },
+                            { label: '🔗 Connect Wallet', action: 'connect_wallet' }
                           ]);
                         }}
                       />
@@ -1757,9 +1767,9 @@ Everything you need to know about investing, earning, and withdrawing.`,
                           connectedWalletsRef.current.add(address);
                           trackConversion('wallet_connected');
                           addMessage('ai', `Great! Your wallet ${address.slice(0,6)}...${address.slice(-4)} is connected! 🎉 What would you like to do next?`, [
-                            { label: '📊 View Dashboard', action: 'show_dashboard' },
                             { label: '💰 Buy OMK Tokens', action: 'show_swap' },
-                            { label: '🏠 Browse Properties', action: 'show_properties' },
+                            { label: '📊 Calculate Returns', action: 'show_roi_calculator' },
+                            { label: '📚 Learn about OMK', action: 'show_about', data: { title: 'About OMK', content: 'OMK is a revolutionary real estate tokenization platform...' } },
                           ]);
                         }}
                       />
@@ -1768,22 +1778,26 @@ Everything you need to know about investing, earning, and withdrawing.`,
 
                   {msg.options && msg.options[0]?.type === 'dashboard' && (
                     <div className="mt-4">
-                      <DashboardCard theme={theme as 'light' | 'dark'} demoMode={true} />
+                      <DashboardCard theme={theme as 'light' | 'dark'} demoMode={false} />
                     </div>
                   )}
 
-                  {/* 🌟 GOLDEN RULE: Property list from /invest redirect */}
+                  {/* 🚧 COMING SOON: Property list - Hidden until backend ready (FPRIME-2) */}
                   {msg.options && msg.options[0]?.type === 'property_list' && (
                     <div className="mt-4">
-                      <PropertyCard
-                        theme={theme as 'light' | 'dark'}
-                        onInvest={(propId, blocks) => {
-                          addMessage('ai', `Congratulations! 🎉 You've invested in ${blocks} blocks! You'll start earning passive income monthly. Check your dashboard to track returns!`, [
-                            { label: '📊 View Dashboard', action: 'show_dashboard' },
-                            { label: '🏠 Browse More Properties', action: 'show_properties' }
-                          ]);
-                        }}
-                      />
+                      <div className="bg-gradient-to-br from-amber-900/20 to-yellow-900/20 rounded-2xl p-8 border border-amber-500/30 text-center">
+                        <div className="text-6xl mb-4">🏗️</div>
+                        <h3 className="text-2xl font-bold mb-3 text-amber-400">Property Investments Coming Soon!</h3>
+                        <p className="text-gray-300 mb-6">We're curating our luxury real estate portfolio. Properties will be available shortly after TGE!</p>
+                        <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                          <button onClick={() => handleOptionClick({ label: '💎 Get OMK Tokens', action: 'show_swap' })} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold rounded-xl hover:scale-105 transition-transform">
+                            💎 Get OMK Tokens Now
+                          </button>
+                          <button onClick={() => handleOptionClick({ label: '📊 Calculate Returns', action: 'show_roi_calculator' })} className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-colors">
+                            📊 Calculate Potential Returns
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1792,11 +1806,11 @@ Everything you need to know about investing, earning, and withdrawing.`,
                     <div className="mt-4">
                       <SwapCard
                         theme={theme as 'light' | 'dark'}
-                        demoMode={true}
+                        demoMode={false}
                         onSwap={(from, to) => {
-                          addMessage('ai', `Awesome! You swapped ${from} for ${to} OMK tokens! 🎉 Ready to invest in properties now?`, [
-                            { label: '🏠 Yes, show me properties', action: 'show_properties' },
-                            { label: '📊 View my portfolio', action: 'show_dashboard' },
+                          addMessage('ai', `Awesome! You swapped ${from} for ${to} OMK tokens! 🎉 Your tokens will be ready at TGE!`, [
+                            { label: '📊 Calculate potential returns', action: 'show_roi_calculator' },
+                            { label: '💰 Buy more OMK', action: 'show_swap' },
                           ]);
                         }}
                       />
@@ -1814,25 +1828,30 @@ Everything you need to know about investing, earning, and withdrawing.`,
                       <OTCPurchaseCard
                         onSubmit={(data) => {
                           addMessage('ai', `✅ Your OTC purchase request has been submitted!\n\n🎯 Allocation: ${data.allocation} OMK\n💰 Total: ${(parseFloat(data.allocation) * 0.10).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}\n\nOur team will review your request and contact you at ${data.email} within 24 hours with payment instructions.`, [
-                            { label: '📊 View Dashboard', action: 'show_dashboard' },
-                            { label: '🏠 Browse Properties', action: 'show_properties' }
+                            { label: '💎 Buy more OMK', action: 'show_swap' },
+                            { label: '📊 Calculate returns', action: 'show_roi_calculator' }
                           ]);
                         }}
                       />
                     </div>
                   )}
 
+                  {/* 🚧 COMING SOON: Property browser - Hidden until backend ready (FPRIME-2) */}
                   {msg.options && msg.options[0]?.type === 'property_browser' && (
                     <div className="mt-4">
-                      <PropertyCard
-                        theme={theme as 'light' | 'dark'}
-                        onInvest={(propId, blocks) => {
-                          addMessage('ai', `Congratulations! 🎉 You've invested in ${blocks} blocks! You'll start earning passive income monthly. Check your dashboard to track returns!`, [
-                            { label: '📊 View Dashboard', action: 'show_dashboard' },
-                            { label: '🏠 Invest in more properties', action: 'show_properties' },
-                          ]);
-                        }}
-                      />
+                      <div className="bg-gradient-to-br from-amber-900/20 to-yellow-900/20 rounded-2xl p-8 border border-amber-500/30 text-center">
+                        <div className="text-6xl mb-4">🏗️</div>
+                        <h3 className="text-2xl font-bold mb-3 text-amber-400">Property Investments Coming Soon!</h3>
+                        <p className="text-gray-300 mb-6">We're curating our luxury real estate portfolio. Properties will be available shortly after TGE!</p>
+                        <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                          <button onClick={() => handleOptionClick({ label: '💎 Get OMK Tokens', action: 'show_swap' })} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold rounded-xl hover:scale-105 transition-transform">
+                            💎 Get OMK Tokens Now
+                          </button>
+                          <button onClick={() => handleOptionClick({ label: '📊 Calculate Returns', action: 'show_roi_calculator' })} className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-colors">
+                            📊 Calculate Potential Returns
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
