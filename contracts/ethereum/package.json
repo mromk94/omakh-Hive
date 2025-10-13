@@ -39,7 +39,7 @@
     "hardhat": "^2.19.0",
     "hardhat-abi-exporter": "^2.10.3",
     "hardhat-contract-sizer": "^2.8.0",
-    "hardhat-deploy": "^0.11.34",
+    "hardhat-deploy": "^1.0.4",
     "hardhat-gas-reporter": "^1.0.9",
     "solidity-coverage": "^0.8.5",
     "ts-node": "^10.9.2",
