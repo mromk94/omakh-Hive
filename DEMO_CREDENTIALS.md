@@ -110,18 +110,14 @@ Try these for general chat:
 - "I want to invest"
 ```
 
-## Admin Access (Future)
-```
-Email: admin@omakh.com
-Password: Admin1234!
-Permissions: Full system access
+
 ```
 
 ## API Keys (for testing integrations)
 
 ### Test API Key
 ```
-X-API-Key: test_omk_hive_123456789
+X-API-Key: 
 ```
 
 ### Rate Limits (Development)
