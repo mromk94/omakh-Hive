@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import LanguageSelector from '@/components/LanguageSelector';
 
 interface MenuItem {
   icon: string;
@@ -60,7 +61,12 @@ export default function FloatingMenu({ onItemClick, theme = 'light' }: FloatingM
 
   return (
     <>
-      {/* Header Menu Button - Moved to top right */}
+      {/* Language Selector - Top Left */}
+      <div className="fixed top-6 left-6 z-50">
+        <LanguageSelector theme={theme} compact />
+      </div>
+
+      {/* Header Menu Button - Top Right */}
       <motion.button
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}

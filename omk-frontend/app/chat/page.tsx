@@ -8,6 +8,8 @@ import { useAccount } from 'wagmi';
 import { frontendAPI } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { API_ENDPOINTS } from '@/lib/constants';
+import { useTranslations } from '@/lib/translations';
+import type { Language } from '@/lib/translations';
 import FloatingMenu from '@/components/menu/FloatingMenu';
 import ROICalculator from '@/components/interactive/ROICalculator';
 import InfoCard from '@/components/cards/InfoCard';
@@ -25,6 +27,7 @@ import WalletFundingGuideCard from '@/components/cards/WalletFundingGuideCard';
 export default function ChatInterface() {
   const router = useRouter();
   const { language, theme: globalTheme, setTheme: setGlobalTheme } = useAppStore();
+  const t = useTranslations(language as Language);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { address } = useAccount(); // Get wallet address for context
   
@@ -1995,19 +1998,18 @@ Everything you need to know about investing, earning, and withdrawing.`,
         }`}
       >
         <div className="max-w-5xl mx-auto flex gap-4">
-          <input
-            type={isPasswordInput ? "password" : "text"}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={isPasswordInput ? "Enter password (hidden)..." : "Type your message..."}
-            disabled={loading}
-            className={`flex-1 px-8 py-5 rounded-full border-2 focus:outline-none transition-all text-lg font-medium ${
-              theme === 'dark'
-                ? 'bg-stone-900 border-yellow-900/30 focus:border-yellow-600 text-stone-100 placeholder-stone-500'
-                : 'bg-white border-yellow-600/30 focus:border-yellow-500 placeholder-stone-400'
-            }`}
-          />
+              <input
+                type={isPasswordInput ? 'password' : 'text'}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder={isPasswordInput ? '🔒 Enter password...' : t.chat.placeholder}
+                className={`flex-1 bg-transparent border-none outline-none text-base ${
+                  theme === 'dark' ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'
+                }`}
+                disabled={loading}
+                autoFocus
+              />
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
