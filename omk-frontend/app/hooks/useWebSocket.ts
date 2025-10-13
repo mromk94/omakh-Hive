@@ -2,7 +2,8 @@
  * WebSocket hooks for real-time admin dashboard updates
  * Replaces HTTP polling with true real-time WebSocket connections
  */
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { QUEEN_WS_URL, WS_ENDPOINTS } from '@/lib/constants';
 import { toast } from 'react-hot-toast';
 
 interface WebSocketHookOptions {
@@ -130,8 +131,7 @@ export function useWebSocket(options: WebSocketHookOptions) {
  * Hook for Hive Intelligence WebSocket
  */
 export function useHiveWebSocket(onUpdate: (data: any) => void) {
-  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'ws://localhost:8001';
-  const wsUrl = `${BACKEND_URL.replace('http', 'ws')}/ws/admin/hive`;
+  const wsUrl = WS_ENDPOINTS.ADMIN_HIVE;
 
   return useWebSocket({
     url: wsUrl,
@@ -157,8 +157,7 @@ export function useHiveWebSocket(onUpdate: (data: any) => void) {
  * Hook for Analytics WebSocket
  */
 export function useAnalyticsWebSocket(onUpdate: (data: any) => void) {
-  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'ws://localhost:8001';
-  const wsUrl = `${BACKEND_URL.replace('http', 'ws')}/ws/admin/analytics`;
+  const wsUrl = WS_ENDPOINTS.ADMIN_ANALYTICS;
 
   return useWebSocket({
     url: wsUrl,
@@ -180,8 +179,7 @@ export function useAnalyticsWebSocket(onUpdate: (data: any) => void) {
  * Hook for Bee Monitor WebSocket
  */
 export function useBeeWebSocket(onUpdate: (data: any) => void) {
-  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'ws://localhost:8001';
-  const wsUrl = `${BACKEND_URL.replace('http', 'ws')}/ws/admin/bees`;
+  const wsUrl = WS_ENDPOINTS.ADMIN_BEES;
 
   return useWebSocket({
     url: wsUrl,

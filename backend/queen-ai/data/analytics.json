@@ -1,0 +1,66 @@
+{
+  "total_users": 0,
+  "active_users_24h": 0,
+  "total_omk_distributed": 0,
+  "total_revenue_usd": 0,
+  "transactions": [
+    {
+      "id": "tx_1",
+      "timestamp": "2025-10-11T21:33:37.034071",
+      "type": "otc_request_submitted",
+      "request_id": "OTC-001",
+      "amount_usd": 25000.0,
+      "user_email": "john@example.com"
+    },
+    {
+      "id": "tx_2",
+      "timestamp": "2025-10-11T22:45:52.388222",
+      "type": "otc_request_submitted",
+      "request_id": "OTC-002",
+      "amount_usd": 10000.0,
+      "user_email": "johndoe@email.com"
+    },
+    {
+      "id": "tx_3",
+      "timestamp": "2025-10-11T22:52:11.806874",
+      "type": "otc_request_submitted",
+      "request_id": "OTC-003",
+      "amount_usd": 50000.0,
+      "user_email": "john@example.com",
+      "requires_approval": false,
+      "has_payment": true
+    },
+    {
+      "id": "tx_4",
+      "timestamp": "2025-10-11T23:12:51.158123",
+      "type": "otc_request_submitted",
+      "request_id": "OTC-004",
+      "amount_usd": 50000.0,
+      "user_email": "test@email.com",
+      "requires_approval": false,
+      "has_payment": true
+    },
+    {
+      "id": "tx_5",
+      "timestamp": "2025-10-11T23:35:08.045227",
+      "type": "otc_request_submitted",
+      "request_id": "OTC-005",
+      "amount_usd": 50000.0,
+      "user_email": "john@email.com",
+      "requires_approval": false,
+      "has_payment": true
+    },
+    {
+      "id": "tx_6",
+      "timestamp": "2025-10-11T23:47:21.005649",
+      "type": "otc_request_submitted",
+      "request_id": "OTC-006",
+      "amount_usd": 50000.0,
+      "user_email": "johnhopps@omakh.io",
+      "requires_approval": false,
+      "has_payment": true
+    }
+  ],
+  "user_signups": [],
+  "pending_otc_requests": 2
+}

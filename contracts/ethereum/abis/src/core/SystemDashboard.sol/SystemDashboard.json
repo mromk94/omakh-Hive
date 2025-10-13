@@ -1,0 +1,389 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_omkToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_vestingManager",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_ecosystemManager",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_treasuryVault",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_privateSale",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_queenController",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_liquiditySentinel",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_governanceManager",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_emergencySystem",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "ecosystemManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "emergencySystem",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllVestingInfo",
+    "outputs": [
+      {
+        "internalType": "uint256[9]",
+        "name": "vestingInfo",
+        "type": "uint256[9]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getEcosystemOverview",
+    "outputs": [
+      {
+        "internalType": "uint256[5]",
+        "name": "budgets",
+        "type": "uint256[5]"
+      },
+      {
+        "internalType": "uint256[5]",
+        "name": "spent",
+        "type": "uint256[5]"
+      },
+      {
+        "internalType": "uint256[5]",
+        "name": "remaining",
+        "type": "uint256[5]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalBudget",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalSpent",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getGovernanceOverview",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "activeProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "passedProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rejectedProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vetoedProposals",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getPoolsOverview",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalPools",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "healthyPools",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "warningPools",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "criticalPools",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getQueenActivity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalOperations",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "dailyTransfersUsed",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "dailyTransfersRemaining",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "rateLimitActive",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lastOperationTime",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getSystemOverview",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalSupply",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "circulatingSupply",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lockedTokens",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "emergencyActive",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "activeProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "queenDailyRemaining",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTokenDistribution",
+    "outputs": [
+      {
+        "internalType": "uint256[7]",
+        "name": "distribution",
+        "type": "uint256[7]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTreasuryOverview",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "balance",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pendingProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "approvedProposals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256[6]",
+        "name": "categorySpent",
+        "type": "uint256[6]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "governanceManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "liquiditySentinel",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "omkToken",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "privateSale",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "queenController",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "treasuryVault",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vestingManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

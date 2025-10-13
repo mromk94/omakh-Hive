@@ -1,0 +1,170 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-10-11T18:41:59.720144",
+  "project_name": "OMK Hive",
+  "structure": {
+    "frontend": {
+      "directory": "omk-frontend",
+      "framework": "Next.js 14",
+      "port": 3001,
+      "package_manager": "npm",
+      "key_directories": {
+        "app": "omk-frontend/app",
+        "components": "omk-frontend/components",
+        "kingdom_admin": "omk-frontend/app/kingdom",
+        "kingdom_components": "omk-frontend/app/kingdom/components"
+      }
+    },
+    "backend": {
+      "directory": "backend/queen-ai",
+      "framework": "FastAPI",
+      "port": 8001,
+      "python_version": "3.13",
+      "key_directories": {
+        "api": "backend/queen-ai/app/api/v1",
+        "bees": "backend/queen-ai/app/bees",
+        "core": "backend/queen-ai/app/core",
+        "security": "backend/queen-ai/app/core/security",
+        "integrations": "backend/queen-ai/app/integrations",
+        "learning": "backend/queen-ai/app/learning"
+      }
+    }
+  },
+  "theme": {
+    "primary_color": "yellow-500",
+    "background": "black/gray-900 gradient",
+    "card_style": "bg-gray-900/50 border border-gray-700 rounded-xl",
+    "text_primary": "white",
+    "text_secondary": "gray-400",
+    "accent_gradients": {
+      "yellow": "from-yellow-900/20 to-yellow-800/10 border-yellow-500/30",
+      "green": "from-green-900/20 to-green-800/10 border-green-500/30",
+      "blue": "from-blue-900/20 to-blue-800/10 border-blue-500/30",
+      "purple": "from-purple-900/20 to-purple-800/10 border-purple-500/30"
+    },
+    "icon_library": "lucide-react",
+    "animation_library": "framer-motion"
+  },
+  "endpoints": {
+    "backend_url": "http://localhost:8001",
+    "api_prefix": "/api/v1",
+    "key_endpoints": {
+      "health": "/api/v1/health",
+      "queen_dev": "/api/v1/queen-dev",
+      "admin": "/api/v1/admin",
+      "admin_claude": "/api/v1/admin/claude",
+      "teacher_bee": "/api/v1/teacher-bee",
+      "frontend": "/api/v1/frontend"
+    }
+  },
+  "patterns": {
+    "kingdom_admin": {
+      "location": "omk-frontend/app/kingdom",
+      "tab_integration": {
+        "tabs_array": "In page.tsx, add to tabs array",
+        "component_loader": "Create function like ClaudeAnalysisTab()",
+        "component_location": "omk-frontend/app/kingdom/components/",
+        "import_pattern": "require('./components/ComponentName').default"
+      },
+      "navigation": {
+        "categories": [
+          "main",
+          "queen",
+          "manage",
+          "system"
+        ],
+        "structure": "Dropdown by category"
+      }
+    },
+    "backend_api": {
+      "router_pattern": "APIRouter with prefix and tags",
+      "security_integration": "get_security_bee() for validation",
+      "error_handling": "HTTPException with proper status codes",
+      "logging": "structlog for structured logging"
+    },
+    "component_style": {
+      "typescript": "Prefer functional components with hooks",
+      "imports": "Group: React \u2192 UI libs \u2192 local components",
+      "state": "useState for local, context for shared",
+      "styling": "Tailwind classes, match existing patterns"
+    }
+  },
+  "security": {
+    "components": [
+      "PromptProtectionGate",
+      "OutputFilter",
+      "SecurityContextManager",
+      "ImageContentScanner",
+      "EnhancedSecurityBee"
+    ],
+    "integration_points": 17,
+    "coverage": "100% of LLM endpoints",
+    "gates": {
+      "input_validation": "validate_llm_input",
+      "output_filtering": "filter_llm_output",
+      "image_scanning": "scan_image"
+    }
+  },
+  "bees": {
+    "total": 22,
+    "list": [
+      "MathsBee",
+      "SecurityBee",
+      "DataBee",
+      "BlockchainBee",
+      "TreasuryBee",
+      "LogicBee",
+      "PatternBee",
+      "TeacherBee",
+      "LiquiditySentinelBee",
+      "StakeBotBee",
+      "TokenizationBee",
+      "MonitoringBee",
+      "PrivateSaleBee",
+      "GovernanceBee",
+      "VisualizationBee",
+      "BridgeBee",
+      "DataPipelineBee",
+      "OnboardingBee",
+      "PurchaseBee",
+      "UserExperienceBee",
+      "EnhancedSecurityBee",
+      "BaseBee"
+    ],
+    "manager": "backend/queen-ai/app/bees/manager.py",
+    "base_class": "backend/queen-ai/app/bees/base.py"
+  },
+  "known_issues": {
+    "wrong_port": {
+      "issue": "Using port 3000 instead of 3001",
+      "solution": "Always check omk-frontend/package.json for actual port",
+      "correct_value": 3001
+    },
+    "wrong_directory": {
+      "issue": "Using frontend/ instead of omk-frontend/",
+      "solution": "Always verify actual directory structure",
+      "correct_value": "omk-frontend/"
+    },
+    "parallel_systems": {
+      "issue": "Creating new dashboard instead of integrating",
+      "solution": "Always find and extend existing systems (Kingdom admin)",
+      "correct_approach": "Integrate into omk-frontend/app/kingdom/"
+    },
+    "hardcoded_data": {
+      "issue": "Returning static data instead of reading files",
+      "solution": "Always implement actual file I/O or database queries",
+      "correct_approach": "Read from JSON files or database"
+    }
+  },
+  "learning_history": {
+    "implementations": [],
+    "corrections": [],
+    "patterns_discovered": []
+  },
+  "metadata": {
+    "created_at": "2025-10-11T18:41:59.720097",
+    "last_reviewed": "2025-10-11T18:41:59.720100",
+    "review_count": 0,
+    "implementation_count": 0
+  }
+}

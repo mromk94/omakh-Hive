@@ -7,6 +7,7 @@ import { Send, Crown, Wifi, WifiOff } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { frontendAPI } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { API_ENDPOINTS } from '@/lib/constants';
 import FloatingMenu from '@/components/menu/FloatingMenu';
 import ROICalculator from '@/components/interactive/ROICalculator';
 import InfoCard from '@/components/cards/InfoCard';
@@ -69,7 +70,7 @@ export default function ChatInterface() {
   useEffect(() => {
     const checkQueenConnection = async () => {
       try {
-        const response = await fetch('http://localhost:8001/health');
+        const response = await fetch(API_ENDPOINTS.HEALTH);
         const data = await response.json();
         setQueenConnected(data.status === 'healthy');
       } catch (error) {
@@ -457,7 +458,7 @@ export default function ChatInterface() {
       // Check OTC configuration to determine flow
       setLoading(true);
       try {
-        const response = await fetch('http://localhost:8001/api/v1/admin/config');
+        const response = await fetch(`${API_ENDPOINTS.ADMIN}/config`);
         const data = await response.json();
         const otcPhase = data?.config?.otc_phase || 'private_sale';
         

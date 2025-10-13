@@ -1,0 +1,15 @@
+{
+  "otc_phase": "disabled",
+  "otc_enabled": true,
+  "tge_completed": false,
+  "tge_date": "2025-12-01T00:00:00Z",
+  "omk_price_usd": 0.1,
+  "private_sale_min_usd": 10000.0,
+  "standard_otc_min_usd": 100.0,
+  "allow_property_investment": true,
+  "allow_staking": false,
+  "allow_governance": false,
+  "maintenance_mode": false,
+  "maintenance_message": null,
+  "updated_at": "2025-10-11T23:36:48.609486"
+}

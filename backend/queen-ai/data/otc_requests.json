@@ -1,0 +1,104 @@
+[
+  {
+    "id": "OTC-001",
+    "status": "pending",
+    "created_at": "2025-10-11T21:33:37.027314",
+    "name": "john doe",
+    "email": "john@example.com",
+    "wallet": "0x9Ed590d2aD5a616fD0440E228186eD3d8034b00B",
+    "allocation": "250000.0",
+    "amount_usd": "25000.0",
+    "price_per_token": 0.1
+  },
+  {
+    "id": "OTC-002",
+    "status": "pending",
+    "created_at": "2025-10-11T22:45:52.381038",
+    "name": "john doe",
+    "email": "johndoe@email.com",
+    "wallet": "0xA1D2f932634Eb1100Fe30277e3844CDe21E736bD",
+    "allocation": "100000.0",
+    "amount_usd": "10000.0",
+    "price_per_token": 0.1
+  },
+  {
+    "id": "OTC-003",
+    "status": "payment_received",
+    "created_at": "2025-10-11T22:52:11.796863",
+    "name": "john doe",
+    "email": "john@example.com",
+    "wallet": "0xA1D2f932634Eb1100Fe30277e3844CDe21E736bD",
+    "allocation": "500000.0",
+    "amount_usd": "50000.0",
+    "price_per_token": 0.1,
+    "payment_token": "DAI",
+    "tx_hash": "234567swdfgh2345634567",
+    "requires_approval": false,
+    "payment": {
+      "token": "DAI",
+      "tx_hash": "234567swdfgh2345634567",
+      "verified": false,
+      "received_at": "2025-10-11T22:52:11.794748"
+    }
+  },
+  {
+    "id": "OTC-004",
+    "status": "payment_received",
+    "created_at": "2025-10-11T23:12:51.149319",
+    "name": "test man",
+    "email": "test@email.com",
+    "wallet": "0xA1D2f932634Eb1100Fe30277e3844CDe21E736bD",
+    "allocation": "500000.0",
+    "amount_usd": "50000.0",
+    "price_per_token": 0.1,
+    "payment_token": "USDT",
+    "tx_hash": "2345678edfgvh",
+    "requires_approval": false,
+    "payment": {
+      "token": "USDT",
+      "tx_hash": "2345678edfgvh",
+      "verified": false,
+      "received_at": "2025-10-11T23:12:51.146952"
+    }
+  },
+  {
+    "id": "OTC-005",
+    "status": "payment_received",
+    "created_at": "2025-10-11T23:35:08.041067",
+    "name": "joh doe",
+    "email": "john@email.com",
+    "wallet": "0x9Ed590d2aD5a616fD0440E228186eD3d8034b00B",
+    "allocation": "500000.0",
+    "amount_usd": "50000.0",
+    "price_per_token": 0.1,
+    "payment_token": "USDT",
+    "tx_hash": "456784564567567",
+    "requires_approval": false,
+    "payment": {
+      "token": "USDT",
+      "tx_hash": "456784564567567",
+      "verified": false,
+      "received_at": "2025-10-11T23:35:08.038535"
+    }
+  },
+  {
+    "id": "OTC-006",
+    "status": "payment_received",
+    "created_at": "2025-10-11T23:47:21.000423",
+    "name": "joh hopps",
+    "email": "johnhopps@omakh.io",
+    "wallet": "0x61EBffb156c942999ce6e7F7a4306ccb927be7c9",
+    "allocation": "500000.0",
+    "amount_usd": "50000.0",
+    "price_per_token": 0.1,
+    "payment_token": "USDT",
+    "tx_hash": "234567890sdfghj",
+    "requires_approval": false,
+    "payment": {
+      "token": "USDT",
+      "tx_hash": "234567890sdfghj",
+      "verified": false,
+      "received_at": "2025-10-11T23:47:20.994022"
+    }
+  }
+]

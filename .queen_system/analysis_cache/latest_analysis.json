@@ -1,0 +1,97 @@
+{
+  "timestamp": "2025-10-13T16:31:35.488906",
+  "source": "real_analysis",
+  "overallScore": 0,
+  "dataFlow": {
+    "score": -7142,
+    "bottlenecks": [
+      "Large file detected: full_pipeline_test.py (626 lines)",
+      "Large file detected: ipython_pygments_lexers.py (582 lines)",
+      "Large file detected: docopt.py (579 lines)",
+      "Large file detected: pycodestyle.py (2667 lines)",
+      "Large file detected: six.py (1003 lines)"
+    ],
+    "strengths": [
+      "Well-structured API versioning",
+      "Clean separation of concerns with core module",
+      "Proper ORM models and database abstraction",
+      "Real-time WebSocket implementation",
+      "Optimized database connection pooling",
+      "TypeScript for type safety"
+    ]
+  },
+  "security": {
+    "coverage": 83,
+    "integrationPoints": 5,
+    "recommendations": [
+      "Add CSRF protection for state-changing operations"
+    ]
+  },
+  "performance": {
+    "avgLatency": 80,
+    "securityGateLatency": 15,
+    "llmLatency": 650,
+    "database_pool_size": 30,
+    "caching_enabled": true
+  },
+  "recommendations": [
+    {
+      "title": "Expand Redis Caching Coverage",
+      "priority": "medium",
+      "impact": "Reduce database queries by 60-80%",
+      "status": "pending",
+      "estimatedImprovement": "40-60% latency reduction",
+      "files": [
+        "backend/queen-ai/app/core/cache_manager.py",
+        "backend/queen-ai/app/api/v1/*.py"
+      ]
+    },
+    {
+      "title": "Add Csrf Protection For State-Changing Operations",
+      "priority": "high",
+      "impact": "Improve security posture",
+      "status": "pending",
+      "estimatedImprovement": "Enhanced security coverage",
+      "files": [
+        "backend/queen-ai/app/middleware/security.py"
+      ]
+    },
+    {
+      "title": "Add Code Quality Monitoring",
+      "priority": "low",
+      "impact": "Maintain code quality as system grows",
+      "status": "pending",
+      "estimatedImprovement": "Prevent technical debt accumulation",
+      "files": [
+        ".github/workflows/code-quality.yml",
+        "pyproject.toml"
+      ]
+    }
+  ],
+  "codeMetrics": {
+    "total_files": 12498,
+    "python_files": 12430,
+    "typescript_files": 68,
+    "total_lines": 3644552,
+    "backend_files": 12430,
+    "frontend_files": 68,
+    "api_endpoints": 164,
+    "database_models": 20,
+    "react_components": 52
+  },
+  "queenInsights": {
+    "recent_bugs": [],
+    "active_proposals": 2,
+    "bugs_fixed": 0,
+    "bugs_pending": 0
+  },
+  "hiveData": {
+    "recent_errors": [],
+    "error_count_24h": 0,
+    "most_common_errors": [],
+    "user_interaction_issues": [],
+    "database_healthy": true
+  },
+  "cached": false,
+  "cache_age_hours": 0
+}
