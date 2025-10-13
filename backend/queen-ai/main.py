@@ -28,47 +28,51 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown"""
-    logger.info("🚀 Starting Queen AI Orchestrator")
+    logger.info("🚀 Starting Queen AI API Server")
     
-    # Initialize Database - Optional for Cloud Run
-    try:
-        logger.info("🗄️  Initializing MySQL database...")
-        # Only init schema if in development mode
-        if settings.ENVIRONMENT == "development":
-            init_db()
-            logger.info("✅ Database schema initialized")
-        else:
-            # In production, just test the connection
-            from app.database.connection import SessionLocal
-            db = SessionLocal()
-            try:
-                db.execute(text("SELECT 1"))
-                logger.info("✅ Database connection verified")
-            finally:
-                db.close()
-    except Exception as e:
-        logger.warning(f"⚠️  Database connection failed: {e}")
-        logger.warning("📝 Running without database (file-based storage will be used)")
-        # Don't fail - allow app to start without database
+    # Start with minimal state - initialize Queen in background
+    app.state.queen = None
+    app.state.initializing = True
     
-    # Initialize Queen Orchestrator (optional for basic operation)
-    try:
-        queen = QueenOrchestrator()
-        await queen.initialize()
+    # Create background task for Queen initialization
+    async def init_queen_background():
+        """Initialize Queen in background to not block startup"""
+        try:
+            logger.info("🗄️  Initializing MySQL database...")
+            if settings.ENVIRONMENT == "development":
+                init_db()
+                logger.info("✅ Database schema initialized")
+            else:
+                from app.database.connection import SessionLocal
+                db = SessionLocal()
+                try:
+                    db.execute(text("SELECT 1"))
+                    logger.info("✅ Database connection verified")
+                finally:
+                    db.close()
+        except Exception as e:
+            logger.warning(f"⚠️  Database connection failed: {e}")
         
-        # Store in app state
-        app.state.queen = queen
-        
-        # Register queen instance for WebSocket access
-        from app.api.v1.websocket import set_queen_instance
-        set_queen_instance(queen)
-        
-        logger.info("✅ Queen AI ready and operational")
-    except Exception as e:
-        logger.warning(f"⚠️  Queen initialization failed: {e}")
-        logger.warning("📝 Running in API-only mode")
-        # Create minimal app state
-        app.state.queen = None
+        try:
+            logger.info("🔧 Initializing Queen Orchestrator...")
+            queen = QueenOrchestrator()
+            await queen.initialize()
+            
+            app.state.queen = queen
+            
+            from app.api.v1.websocket import set_queen_instance
+            set_queen_instance(queen)
+            
+            logger.info("✅ Queen AI fully operational")
+        except Exception as e:
+            logger.warning(f"⚠️  Queen initialization failed: {e}")
+        finally:
+            app.state.initializing = False
+    
+    # Start initialization in background
+    asyncio.create_task(init_queen_background())
+    
+    logger.info("✅ API Server ready (Queen initializing in background)")
     
     yield
     
@@ -122,17 +126,20 @@ def create_app() -> FastAPI:
     # Health check endpoint
     @app.get("/health")
     async def health_check():
-        """Health check endpoint"""
-        health = {"status": "starting"}
-        
-        if hasattr(app.state, "queen"):
-            health = await app.state.queen.get_system_health()
+        """Health check endpoint - always returns 200 for Cloud Run"""
+        if getattr(app.state, "initializing", False):
+            status = "initializing"
+        elif app.state.queen:
+            status = "operational"
+        else:
+            status = "degraded"
         
         return {
             "service": "Queen AI Orchestrator",
             "version": "1.0.0",
             "environment": settings.ENVIRONMENT,
-            **health
+            "status": status,
+            "queen_initialized": app.state.queen is not None
         }
 
     # Root endpoint
