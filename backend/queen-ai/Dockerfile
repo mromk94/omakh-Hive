@@ -41,4 +41,5 @@ ENV PYTHONUNBUFFERED 1
 EXPOSE 8080
 
 # Start with uvicorn - use exec form with port 8080 directly
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+# Use minimal version for testing Cloud Run deployment
+CMD ["uvicorn", "main_minimal:app", "--host", "0.0.0.0", "--port", "8080"]
