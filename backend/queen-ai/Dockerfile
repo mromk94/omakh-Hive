@@ -36,9 +36,9 @@ RUN useradd -m -u 1001 queenai && \
 USER queenai
 
 # Cloud Run uses PORT env var (default 8080)
-ENV PORT=8080
-ENV PYTHONUNBUFFERED=1
+ENV PORT 8080
+ENV PYTHONUNBUFFERED 1
 EXPOSE 8080
 
-# Bind to PORT environment variable for Cloud Run compatibility
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"]
+# Start with uvicorn - use exec form with port 8080 directly
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
