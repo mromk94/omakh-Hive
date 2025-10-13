@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Send, Crown, Wifi, WifiOff } from 'lucide-react';
+import { useAccount } from 'wagmi';
 import { frontendAPI } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import FloatingMenu from '@/components/menu/FloatingMenu';
@@ -13,19 +14,56 @@ import WalletConnectCard from '@/components/cards/WalletConnectCard';
 import DashboardCard from '@/components/cards/DashboardCard';
 import SwapCard from '@/components/cards/SwapCard';
 import PropertyCard from '@/components/cards/PropertyCard';
+import PrivateInvestorCard from '@/components/cards/PrivateInvestorCard';
+import OTCPurchaseCard from '@/components/cards/OTCPurchaseCard';
+import WalletEducationCard from '@/components/cards/WalletEducationCard';
+import OnboardingFlowCard from '@/components/cards/OnboardingFlowCard';
+import VisualWalletGuideCard from '@/components/cards/VisualWalletGuideCard';
+import WalletFundingGuideCard from '@/components/cards/WalletFundingGuideCard';
 
 export default function ChatInterface() {
   const router = useRouter();
-  const { language, theme, setTheme } = useAppStore();
+  const { language, theme: globalTheme, setTheme: setGlobalTheme } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { address } = useAccount(); // Get wallet address for context
   
+  // Use local state for theme to prevent hydration mismatch
+  const [theme, setThemeLocal] = useState('light');
   const [messages, setMessages] = useState<any[]>([]);
+  
+  // Sync with global theme after mount
+  useEffect(() => {
+    setThemeLocal(globalTheme);
+  }, [globalTheme]);
+  
+  // Wrapper to update both local and global theme
+  const setTheme = (newTheme: string) => {
+    setThemeLocal(newTheme);
+    setGlobalTheme(newTheme);
+  };
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [queenConnected, setQueenConnected] = useState<boolean | null>(null);
   const [teacherBeeMode, setTeacherBeeMode] = useState(false);
   const [flowState, setFlowState] = useState<any>({ type: null, data: {} });
+  const [isPasswordInput, setIsPasswordInput] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const hasInitialized = useRef(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const connectedWalletsRef = useRef(new Set<string>()); // Track wallets that already triggered message
+
+  // Apply theme on mount to fix mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.body.style.backgroundColor = '#000000';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.body.style.backgroundColor = '#ffffff';
+      }
+    }
+  }, [theme]);
 
   // Check Queen connection status
   useEffect(() => {
@@ -44,6 +82,50 @@ export default function ChatInterface() {
     // Check every 30 seconds
     const interval = setInterval(checkQueenConnection, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // 🌟 GOLDEN RULE: Handle redirects from standalone pages
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+
+    if (view === 'dashboard') {
+      // User was redirected from /dashboard
+      setTimeout(() => {
+        addMessage('user', 'Show me my portfolio');
+        addMessage('ai', 'Here\'s your portfolio overview! 📊', [
+          { type: 'dashboard' }
+        ]);
+      }, 500);
+    } else if (view === 'properties') {
+      // User was redirected from /invest
+      setTimeout(() => {
+        addMessage('user', 'I want to invest in real estate');
+        addMessage('ai', 'I\'d love to help you invest in real estate! Here are the available properties 🏢', [
+          { type: 'property_list' }
+        ]);
+      }, 500);
+    }
+  }, []);
+
+  // 🌟 GOLDEN RULE: Listen for chat events from other components
+  useEffect(() => {
+    const handleChatMessage = (event: CustomEvent) => {
+      const { user, ai, cardType, cardData } = event.detail;
+      
+      addMessage('user', user);
+      if (cardType) {
+        addMessage('ai', ai, [{ type: cardType, data: cardData }]);
+      } else {
+        addMessage('ai', ai);
+      }
+      
+      // Scroll to show new messages
+      scrollToBottom();
+    };
+
+    window.addEventListener('addChatMessage' as any, handleChatMessage);
+    return () => window.removeEventListener('addChatMessage' as any, handleChatMessage);
   }, []);
 
   useEffect(() => {
@@ -81,15 +163,51 @@ export default function ChatInterface() {
   }, []); // Empty dependency array - only run once
 
   const addMessage = (sender: 'user' | 'ai', content: string, options?: any[]) => {
-    setMessages(prev => [...prev, { sender, content, options, timestamp: new Date(), id: Date.now() }]);
-    scrollToBottom();
+    const newMessage = {
+      id: Date.now(),
+      sender,
+      content,
+      options,
+      timestamp: new Date().toISOString()
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (instant = false) => {
+    // The container has min-h-screen, so WINDOW scrolls, not the div
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (messagesEndRef.current) {
+        // Scroll window to show the spacer element
+        window.scrollTo({
+          top: messagesEndRef.current.offsetTop - 200, // Offset for input field
+          behavior: instant ? 'auto' : 'smooth'
+        });
+      }
     }, 100);
   };
+
+  // Auto-scroll to bottom whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom(false);
+    }
+  }, [messages.length]);
+
+  // Detect if user has scrolled up from bottom
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollIndicator(!isNearBottom && messages.length > 0);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [messages.length]);
 
   const handleThemeSelect = async (selectedTheme: string) => {
     setTheme(selectedTheme);
@@ -139,10 +257,34 @@ export default function ChatInterface() {
         return;
       }
 
-      // Normal Queen AI flow
-      const res = await frontendAPI.chat(userInput);
+      // 🌟 Context-Aware Queen AI flow
+      // Send full conversation history and wallet address for intelligent routing      
+      const res = await frontendAPI.chat(
+        userInput,
+        undefined, // session token
+        undefined, // context
+        messages,  // Full chat history
+        address    // Wallet address for context
+      );
+      
       setTimeout(() => {
+        // Display AI response
         addMessage('ai', res.data.message, res.data.options);
+        
+        // Show recommended actions from Queen's analysis
+        if (res.data.recommended_actions && res.data.recommended_actions.length > 0) {
+          const actionButtons = res.data.recommended_actions.map((action: any) => ({
+            label: action.label,
+            action: action.card_type || action.action,
+            description: action.description
+          }));
+          
+          // Add recommendations as buttons
+          setTimeout(() => {
+            addMessage('ai', '💡 Here are some things I can help you with:', actionButtons);
+          }, 400);
+        }
+        
         setLoading(false);
       }, 600);
     } catch (err) {
@@ -165,11 +307,14 @@ export default function ChatInterface() {
       }
       
       setFlowState({ type: 'email_login', data: { step: 'password', email: userInput } });
+      setIsPasswordInput(true);
       setTimeout(() => {
         addMessage('ai', '✅ Got it! Now enter your password 🔒\n\n(Demo: Use "Demo1234!" for demo@omakh.com)');
         setLoading(false);
       }, 500);
     } else if (step === 'password') {
+      setIsPasswordInput(false);
+      
       // Validate login
       try {
         const res = await frontendAPI.login(email, userInput);
@@ -178,7 +323,7 @@ export default function ChatInterface() {
           addMessage('ai', `🎉 Welcome back! You\'re logged in!\n\nWhat would you like to do?`, [
             { label: '📊 View my dashboard', action: 'show_dashboard' },
             { label: '🏠 Browse properties', action: 'show_properties' },
-            { label: '💰 Buy OMK tokens', action: 'show_swap' }
+            { label: '💎 Get OMK tokens', action: 'show_get_omk' }
           ]);
           setLoading(false);
         }, 800);
@@ -215,6 +360,7 @@ export default function ChatInterface() {
       }, 500);
     } else if (step === 'name') {
       setFlowState({ type: 'email_signup', data: { step: 'password', email, name: userInput } });
+      setIsPasswordInput(true);
       setTimeout(() => {
         addMessage('ai', `Nice to meet you, ${userInput}! 👋\n\nNow create a strong password 🔒\n\n(Min 8 characters, include numbers & symbols)`);
         setLoading(false);
@@ -228,16 +374,37 @@ export default function ChatInterface() {
         return;
       }
       
+      // Ask for confirmation
+      setFlowState({ type: 'email_signup', data: { step: 'confirm_password', email, name, password: userInput } });
+      setIsPasswordInput(true);
+      setTimeout(() => {
+        addMessage('ai', '🔒 Confirm your password\n\n(Type the same password again)');
+        setLoading(false);
+      }, 500);
+    } else if (step === 'confirm_password') {
+      const { password: originalPassword } = flowState.data;
+      
+      if (userInput !== originalPassword) {
+        setTimeout(() => {
+          addMessage('ai', '❌ Passwords don\'t match. Please try again.\n\nRe-enter your password:');
+          setFlowState({ type: 'email_signup', data: { step: 'password', email, name } });
+          setLoading(false);
+        }, 500);
+        return;
+      }
+      
+      setIsPasswordInput(false);
+      
       // Register user
       try {
-        await frontendAPI.register({ email, name, password: userInput });
+        await frontendAPI.register({ email, name, password: originalPassword });
         setFlowState({ type: null, data: {} });
+        
+        // Track new user signup
+        trackConversion('user_registered');
+        
         setTimeout(() => {
-          addMessage('ai', `🎉 Account created successfully, ${name}!\n\nLet\'s get you started!`, [
-            { label: '🔗 Connect my wallet', action: 'connect_wallet' },
-            { label: '🏠 Browse properties', action: 'show_properties' },
-            { label: '📚 Learn the basics', action: 'ask_teacher_bee' }
-          ]);
+          addMessage('ai', `🎉 Welcome to Omakh, ${name}!\n\nLet me show you around...`, [{ type: 'onboarding_flow' }]);
           setLoading(false);
         }, 800);
       } catch (err) {
@@ -253,7 +420,7 @@ export default function ChatInterface() {
     }
   };
 
-  const handleOptionClick = (option: any) => {
+  const handleOptionClick = async (option: any) => {
     if (option.action === 'select_theme') {
       handleThemeSelect(option.id);
     } else if (option.action === 'login') {
@@ -287,14 +454,46 @@ export default function ChatInterface() {
       addMessage('ai', 'Here\'s your portfolio overview! 📊', [{ type: 'dashboard' }]);
     } else if (option.action === 'show_swap') {
       addMessage('user', option.label);
-      addMessage('ai', 'Great! Let\'s get you some OMK tokens! 💰', [{ type: 'token_swap' }]);
+      // Check OTC configuration to determine flow
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:8001/api/v1/admin/config');
+        const data = await response.json();
+        const otcPhase = data?.config?.otc_phase || 'private_sale';
+        
+        setLoading(false);
+        
+        if (otcPhase === 'private_sale') {
+          // Show OTC purchase flow (requires manual approval)
+          const tgeDate = data?.config?.tge_date || '2025-12-31T00:00:00Z';
+          const tgeDateFormatted = new Date(tgeDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          
+          addMessage('ai', `💎 Great! Since OMK is currently in **Private Sale** phase, you\'ll need to submit an OTC request.\n\n📋 Your crypto payment will be verified automatically. Tokens will be distributed to your wallet at **TGE (${tgeDateFormatted})**!`, [
+            { type: 'otc_purchase' }
+          ]);
+        } else if (otcPhase === 'standard') {
+          // Show instant swap (post-TGE)
+          addMessage('ai', 'Perfect! Let\'s swap your tokens for OMK instantly! 💰', [
+            { type: 'token_swap' }
+          ]);
+        } else {
+          // Disabled
+          addMessage('ai', '⚠️ OTC purchases are currently disabled. Please check back later or contact our support team for assistance.');
+        }
+      } catch (error) {
+        setLoading(false);
+        // Fallback to OTC if backend unavailable
+        addMessage('ai', '💎 Let\'s get you some OMK tokens! Since we\'re in pre-launch phase, please submit an OTC request:', [
+          { type: 'otc_purchase' }
+        ]);
+      }
     } else if (option.action === 'show_properties') {
       addMessage('user', option.label);
       addMessage('ai', 'Here are our premium investment properties! 🏠', [{ type: 'property_browser' }]);
     } else if (option.action === 'ask_teacher_bee') {
       addMessage('user', option.label);
-      setTeacherBeeMode(true);
-      addMessage('ai', '👑🐝 Hi! I\'m Teacher Bee, your Web3 learning assistant!\n\nI can help you with:\n• Setting up your first wallet\n• Understanding crypto & blockchain\n• Security best practices\n• How to invest in real estate\n\nWhat would you like to learn about?');
+      trackConversion('wallet_education_started');
+      addMessage('ai', '📚 Let me explain what a crypto wallet is! This will help you understand how to own OMK tokens and invest in real estate.', [{ type: 'wallet_education' }]);
     } else if (option.action === 'email_signup') {
       addMessage('user', option.label);
       setFlowState({ type: 'email_signup', data: { step: 'email' } });
@@ -304,12 +503,15 @@ export default function ChatInterface() {
       addMessage('ai', `Awesome! Welcome ${option.id}! 🎉\n\nLet me show you around. What would you like to do first?`, [
         { label: '💰 Calculate potential returns', action: 'show_roi_calculator' },
         { label: '🏠 Browse properties', action: 'show_properties' },
-        { label: '🔗 Connect my wallet', action: 'connect_wallet' },
+        { label: '💎 Get OMK Tokens', action: 'show_get_omk' },
         { label: '📚 Learn about Omakh', action: 'about' }
       ]);
     } else if (option.action === 'show_private_sale') {
       addMessage('user', option.label);
       addMessage('ai', 'Welcome to the OMK Private Sale! 🎯\n\nGet in early with exclusive benefits!', [{ type: 'private_sale' }]);
+    } else if (option.action === 'show_otc_purchase') {
+      addMessage('user', option.label);
+      addMessage('ai', '🎯 OTC Purchase Request\n\nPurchase OMK tokens directly before TGE at $0.10 per token. Minimum 100,000 OMK ($10,000).', [{ type: 'otc_purchase' }]);
     } else if (option.action === 'start_kyc') {
       addMessage('user', option.label);
       addMessage('ai', '🔐 KYC Verification Process\n\nTo comply with regulations, we need to verify your identity.\n\nYou\'ll need:\n• Government ID (Passport/Driver\'s License)\n• Proof of address (Utility bill)\n• Selfie for verification\n\nThis usually takes 24-48 hours.\n\nReady to start?', [
@@ -330,9 +532,50 @@ export default function ChatInterface() {
         { label: '🔢 Calculate my allocation', action: 'show_roi_calculator' },
         { label: '📚 Learn more', action: 'show_about', data: { title: 'Tokenomics', icon: '💎' } }
       ]);
+    } else if (option.action === 'manage_private_investors') {
+      addMessage('user', option.label);
+      addMessage('ai', '👑 Private Investor Management (Admin Only)\n\nManage pre-TGE OTC investors, execute TGE, and distribute tokens.', [{ type: 'private_investor_admin' }]);
+    } else if (option.action === 'learn_wallet') {
+      addMessage('user', option.label);
+      addMessage('ai', '📚 Let me explain what a crypto wallet is and why you need one!', [{ type: 'wallet_education' }]);
+    } else if (option.action === 'show_get_omk') {
+      addMessage('user', option.label);
+      addMessage('ai', 'Perfect! Do you have a crypto wallet?', [
+        { label: '✅ Yes, I have a wallet', action: 'connect_wallet' },
+        { label: '❓ No, what\'s a wallet?', action: 'ask_teacher_bee' },
+        { label: '📧 I prefer email signup', action: 'email_signup' }
+      ]);
+    } else if (option.action === 'contact_teacher') {
+      addMessage('user', option.label);
+      // Track new crypto user conversion
+      trackConversion('wallet_help_requested');
+      addMessage('ai', '🐝 Hi! I\'m Teacher Bee, your Web3 learning assistant!\n\nI can help you with:\n• Setting up your first wallet\n• Understanding crypto & blockchain\n• Security best practices\n• How to invest in real estate\n\nWhat would you like to learn about?', [
+        { label: '👛 Set up my first wallet', action: 'setup_wallet_guide' },
+        { label: '🔐 Wallet security tips', action: 'security_tips' },
+        { label: '💰 How to buy OMK tokens', action: 'buy_omk_guide' },
+        { label: '🏠 How real estate tokenization works', action: 'tokenization_guide' }
+      ]);
+    } else if (option.action === 'setup_wallet_guide') {
+      addMessage('user', option.label);
+      addMessage('ai', '👛 I\'ll guide you through setting up MetaMask step-by-step!\n\nYou can upload screenshots at ANY time if you get stuck, and I\'ll help you! 📸', [{ type: 'visual_wallet_guide' }]);
     } else {
       addMessage('user', option.label);
     }
+  };
+
+  const trackConversion = (event: string) => {
+    // Track important conversion events
+    console.log(`[Conversion] ${event}`);
+    // Send to analytics/Queen backend
+    fetch('/api/analytics/conversion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event,
+        timestamp: new Date().toISOString(),
+        session: typeof window !== 'undefined' ? sessionStorage.getItem('session_id') : null
+      })
+    }).catch(err => console.error('Analytics error:', err));
   };
 
   const handleMenuClick = (action: string, url?: string) => {
@@ -1196,11 +1439,14 @@ Everything you need to know about investing, earning, and withdrawing.`,
   };
 
   return (
-    <div className={`min-h-screen transition-all duration-500 relative ${
-      theme === 'dark' 
-        ? 'bg-black' 
-        : 'bg-gradient-to-br from-stone-100 via-stone-50 to-amber-50'
-    }`}>
+    <div 
+      ref={chatContainerRef}
+      className={`min-h-screen transition-all duration-500 relative overflow-y-auto ${
+        theme === 'dark' 
+          ? 'bg-black' 
+          : 'bg-gradient-to-br from-stone-100 via-stone-50 to-amber-50'
+      }`}
+    >
       {/* Animated Background */}
       <div className={`absolute inset-0 overflow-hidden pointer-events-none ${theme === 'dark' ? 'opacity-10' : 'opacity-30'}`}>
         <motion.div
@@ -1243,11 +1489,11 @@ Everything you need to know about investing, earning, and withdrawing.`,
           theme === 'dark' ? 'bg-black/95 border-yellow-900/30' : 'bg-stone-50/80 border-yellow-600/30'
         }`}
       >
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-6 py-4 pr-24">
           {/* Logo and Price */}
-          <div className="flex flex-col items-center gap-2 relative">
-            {/* Connection Status Indicator */}
-            <div className="absolute -left-2 top-0 flex items-center gap-1">
+          <div className="flex flex-col items-center gap-2 relative max-w-md mx-auto">
+            {/* Connection Status Indicator - Now on left side */}
+            <div className="absolute left-0 top-0 flex items-center gap-1">
               {queenConnected === null ? (
                 <div className={`w-2 h-2 rounded-full animate-pulse ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`} />
               ) : queenConnected ? (
@@ -1343,6 +1589,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
+              data-message-id={msg.id}
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.4, type: "spring" }}
@@ -1409,11 +1656,105 @@ Everything you need to know about investing, earning, and withdrawing.`,
                     </div>
                   )}
 
+                  {msg.options && msg.options[0]?.type === 'onboarding_flow' && (
+                    <div className="mt-4">
+                      <OnboardingFlowCard
+                        userName={flowState.data?.name || 'there'}
+                        onComplete={() => {
+                          trackConversion('onboarding_completed');
+                          addMessage('ai', '🎯 Perfect! Now let\'s get you some OMK tokens!', [
+                            { label: '💎 Get OMK Tokens', action: 'show_get_omk' },
+                            { label: '🏠 Browse Properties', action: 'show_properties' },
+                            { label: '📊 Calculate Returns', action: 'show_roi_calculator' }
+                          ]);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {msg.options && msg.options[0]?.type === 'wallet_funding_guide' && (
+                    <div className="mt-4">
+                      <WalletFundingGuideCard
+                        onComplete={() => {
+                          trackConversion('wallet_funded');
+                          addMessage('ai', '💰 Perfect! Now let\'s connect your funded wallet to Omakh!', [{ type: 'wallet_connect' }]);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {msg.options && msg.options[0]?.type === 'visual_wallet_guide' && (
+                    <div className="mt-4">
+                      <VisualWalletGuideCard
+                        onComplete={() => {
+                          trackConversion('wallet_setup_completed');
+                          addMessage('ai', '🎉 Awesome! Your wallet is set up!\n\nBut wait - before you can buy OMK tokens, you need to fund your wallet first! 💰', [{ type: 'wallet_funding_guide' }]);
+                        }}
+                        onAskTeacher={async (question, screenshot) => {
+                          addMessage('user', question);
+                          setLoading(true);
+                          
+                          try {
+                            const formData = new FormData();
+                            formData.append('question', question);
+                            if (screenshot) {
+                              formData.append('screenshot', screenshot);
+                            }
+                            
+                            const response = await fetch('/api/teacher-bee/analyze-screenshot', {
+                              method: 'POST',
+                              body: formData
+                            });
+                            
+                            const data = await response.json();
+                            setTimeout(() => {
+                              addMessage('ai', data.response);
+                              setLoading(false);
+                            }, 1000);
+                          } catch (error) {
+                            setTimeout(() => {
+                              addMessage('ai', 'I can help! Please describe what you\'re seeing or try uploading the screenshot again.');
+                              setLoading(false);
+                            }, 1000);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {msg.options && msg.options[0]?.type === 'wallet_education' && (
+                    <div className="mt-4">
+                      <WalletEducationCard
+                        theme={theme as 'light' | 'dark'}
+                        onGetWallet={() => {
+                          trackConversion('get_wallet_clicked');
+                          window.open('https://metamask.io/download/', '_blank');
+                        }}
+                        onHaveWallet={() => {
+                          trackConversion('has_wallet');
+                          addMessage('ai', 'Awesome! Let\'s connect your wallet 🔗', [{ type: 'wallet_connect' }]);
+                        }}
+                        onContactTeacher={() => {
+                          trackConversion('wallet_help_requested');
+                          handleOptionClick({ label: '📚 Get help from Teacher Bee', action: 'contact_teacher' });
+                        }}
+                      />
+                    </div>
+                  )}
+
                   {msg.options && msg.options[0]?.type === 'wallet_connect' && (
                     <div className="mt-4">
                       <WalletConnectCard
                         theme={theme as 'light' | 'dark'}
                         onConnected={(address) => {
+                          // Prevent duplicate messages for same wallet
+                          if (connectedWalletsRef.current.has(address)) {
+                            console.log('[Chat] Wallet already connected, skipping duplicate message');
+                            return;
+                          }
+                          
+                          connectedWalletsRef.current.add(address);
+                          trackConversion('wallet_connected');
                           addMessage('ai', `Great! Your wallet ${address.slice(0,6)}...${address.slice(-4)} is connected! 🎉 What would you like to do next?`, [
                             { label: '📊 View Dashboard', action: 'show_dashboard' },
                             { label: '💰 Buy OMK Tokens', action: 'show_swap' },
@@ -1430,6 +1771,22 @@ Everything you need to know about investing, earning, and withdrawing.`,
                     </div>
                   )}
 
+                  {/* 🌟 GOLDEN RULE: Property list from /invest redirect */}
+                  {msg.options && msg.options[0]?.type === 'property_list' && (
+                    <div className="mt-4">
+                      <PropertyCard
+                        theme={theme as 'light' | 'dark'}
+                        onInvest={(propId, blocks) => {
+                          addMessage('ai', `Congratulations! 🎉 You've invested in ${blocks} blocks! You'll start earning passive income monthly. Check your dashboard to track returns!`, [
+                            { label: '📊 View Dashboard', action: 'show_dashboard' },
+                            { label: '🏠 Browse More Properties', action: 'show_properties' }
+                          ]);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Token Swap Card - Only for standard/post-TGE mode */}
                   {msg.options && msg.options[0]?.type === 'token_swap' && (
                     <div className="mt-4">
                       <SwapCard
@@ -1439,6 +1796,25 @@ Everything you need to know about investing, earning, and withdrawing.`,
                           addMessage('ai', `Awesome! You swapped ${from} for ${to} OMK tokens! 🎉 Ready to invest in properties now?`, [
                             { label: '🏠 Yes, show me properties', action: 'show_properties' },
                             { label: '📊 View my portfolio', action: 'show_dashboard' },
+                          ]);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {msg.options && msg.options[0]?.type === 'private_investor_admin' && (
+                    <div className="mt-4">
+                      <PrivateInvestorCard />
+                    </div>
+                  )}
+
+                  {msg.options && msg.options[0]?.type === 'otc_purchase' && (
+                    <div className="mt-4">
+                      <OTCPurchaseCard
+                        onSubmit={(data) => {
+                          addMessage('ai', `✅ Your OTC purchase request has been submitted!\n\n🎯 Allocation: ${data.allocation} OMK\n💰 Total: ${(parseFloat(data.allocation) * 0.10).toLocaleString('en-US', {style: 'currency', currency: 'USD'})}\n\nOur team will review your request and contact you at ${data.email} within 24 hours with payment instructions.`, [
+                            { label: '📊 View Dashboard', action: 'show_dashboard' },
+                            { label: '🏠 Browse Properties', action: 'show_properties' }
                           ]);
                         }}
                       />
@@ -1561,8 +1937,34 @@ Everything you need to know about investing, earning, and withdrawing.`,
           </motion.div>
         )}
         
-        <div ref={messagesEndRef} />
+        {/* Large spacer to ensure last message is fully visible above input */}
+        <div ref={messagesEndRef} className="h-48" />
       </div>
+
+      {/* Scroll Down Indicator */}
+      <AnimatePresence>
+        {showScrollIndicator && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onClick={() => scrollToBottom()}
+            className={`fixed bottom-32 left-1/2 -translate-x-1/2 z-40 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-semibold ${
+              theme === 'dark' 
+                ? 'bg-yellow-600 text-black hover:bg-yellow-500' 
+                : 'bg-yellow-500 text-white hover:bg-yellow-600'
+            }`}
+          >
+            <span>New messages</span>
+            <motion.div
+              animate={{ y: [0, 5, 0] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              ↓
+            </motion.div>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Input Box */}
       <motion.div 
@@ -1574,11 +1976,11 @@ Everything you need to know about investing, earning, and withdrawing.`,
       >
         <div className="max-w-5xl mx-auto flex gap-4">
           <input
-            type="text"
+            type={isPasswordInput ? "password" : "text"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your message..."
+            placeholder={isPasswordInput ? "Enter password (hidden)..." : "Type your message..."}
             disabled={loading}
             className={`flex-1 px-8 py-5 rounded-full border-2 focus:outline-none transition-all text-lg font-medium ${
               theme === 'dark'

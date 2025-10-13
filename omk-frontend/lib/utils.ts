@@ -16,9 +16,29 @@ export function formatNumber(num: number, decimals = 2): string {
   }).format(num)
 }
 
-export function formatCurrency(num: number): string {
+export function formatCurrency(value: number, decimals: number = 2): string {
+  // For large numbers, use abbreviations
+  const absValue = Math.abs(value);
+  
+  if (absValue >= 1e12) {
+    // Trillions
+    return `$${(value / 1e12).toFixed(2)}T`;
+  } else if (absValue >= 1e9) {
+    // Billions
+    return `$${(value / 1e9).toFixed(2)}B`;
+  } else if (absValue >= 1e6) {
+    // Millions
+    return `$${(value / 1e6).toFixed(2)}M`;
+  } else if (absValue >= 1e3) {
+    // Thousands
+    return `$${(value / 1e3).toFixed(2)}K`;
+  }
+  
+  // Regular formatting for smaller numbers
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(num)
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
 }

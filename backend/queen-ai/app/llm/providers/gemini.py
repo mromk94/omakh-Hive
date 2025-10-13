@@ -85,6 +85,53 @@ class GeminiProvider:
             logger.error("Gemini generation failed", error=str(e))
             raise
     
+    async def generate_with_vision(
+        self,
+        prompt: str,
+        image_base64: str,
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        **kwargs
+    ) -> str:
+        """
+        Generate completion from Gemini with image analysis
+        Uses Gemini's vision capabilities to analyze screenshots
+        """
+        if not self.initialized:
+            raise RuntimeError("Gemini provider not initialized")
+        
+        try:
+            import base64
+            from PIL import Image
+            import io
+            
+            # Decode base64 image
+            image_data = base64.b64decode(image_base64)
+            image = Image.open(io.BytesIO(image_data))
+            
+            # Generate content with image
+            response = self.model.generate_content(
+                [prompt, image],
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                )
+            )
+            
+            # Extract text
+            text = response.text
+            
+            logger.info("Gemini vision generation complete",
+                       input_length=len(prompt),
+                       output_length=len(text),
+                       has_image=True)
+            
+            return text
+            
+        except Exception as e:
+            logger.error("Gemini vision generation failed", error=str(e))
+            raise
+    
     async def health_check(self) -> bool:
         """Check if Gemini is available"""
         if not self.initialized:

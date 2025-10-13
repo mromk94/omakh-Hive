@@ -172,9 +172,9 @@ class DataPipelineBee(BaseBee):
             import sys
             sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
             
-            from backend.queen_ai.app.integrations.data_collectors.blockchain_transactions import BlockchainTransactionsConnector
-            from backend.queen_ai.app.integrations.data_collectors.dex_pools import DEXPoolsConnector
-            from backend.queen_ai.app.integrations.data_collectors.price_oracles import PriceOraclesConnector
+            from app.integrations.data_collectors.blockchain_transactions import BlockchainTransactionsConnector
+            from app.integrations.data_collectors.dex_pools import DEXPoolsConnector
+            from app.integrations.data_collectors.price_oracles import PriceOraclesConnector
             
             # Initialize connectors
             blockchain_connector = BlockchainTransactionsConnector()

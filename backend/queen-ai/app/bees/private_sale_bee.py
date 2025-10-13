@@ -79,49 +79,75 @@ class PrivateSaleBee(BaseBee):
         """
         Execute private sale task
         
-        Task Types:
-        - calculate_cost: Calculate USD cost for token amount
-        - process_purchase: Execute investor purchase
-        - get_current_tier: Get current tier information
-        - get_remaining_tokens: Tokens available at each tier
-        - validate_investor: Check investor eligibility
+        Tasks:
+        - calculate_purchase: Calculate cost for token purchase
+        - process_purchase: Process an investor purchase
+        - get_current_tier: Get current tier info
         - add_to_whitelist: Add investor to KYC whitelist
-        - get_sales_stats: Sales statistics and reporting
-        - simulate_purchase: Simulate purchase without executing
+        - get_sales_report: Generate sales report
+        - get_all_requests: Get all OTC requests (for MarketDataAgent)
         """
         task_type = task_data.get("type")
         
-        logger.info(f"PrivateSaleBee executing: {task_type}", data=task_data)
-        
-        try:
-            if task_type == "calculate_cost":
-                return await self._calculate_cost(task_data)
-            elif task_type == "process_purchase":
-                return await self._process_purchase(task_data)
-            elif task_type == "get_current_tier":
-                return await self._get_current_tier(task_data)
-            elif task_type == "get_remaining_tokens":
-                return await self._get_remaining_tokens(task_data)
-            elif task_type == "validate_investor":
-                return await self._validate_investor(task_data)
-            elif task_type == "add_to_whitelist":
-                return await self._add_to_whitelist(task_data)
-            elif task_type == "get_sales_stats":
-                return await self._get_sales_stats(task_data)
-            elif task_type == "simulate_purchase":
-                return await self._simulate_purchase(task_data)
-            else:
-                return {
-                    "success": False,
-                    "error": f"Unknown task type: {task_type}"
-                }
-                
-        except Exception as e:
-            logger.error(f"PrivateSaleBee error: {str(e)}", task_type=task_type)
+        if task_type == "calculate_purchase":
+            return await self._calculate_purchase(task_data)
+        elif task_type == "process_purchase":
+            return await self._process_purchase(task_data)
+        elif task_type == "get_current_tier":
+            return await self._get_current_tier(task_data)
+        elif task_type == "add_to_whitelist":
+            return await self._add_to_whitelist(task_data)
+        elif task_type == "get_sales_report":
+            return await self._get_sales_report(task_data)
+        elif task_type == "get_all_requests":
+            return await self._get_all_requests(task_data)
+        else:
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Unknown task type: {task_type}"
             }
+    
+    async def _get_all_requests(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get all OTC requests
+        Used by MarketDataAgent for calculating OTC metrics
+        """
+        try:
+            # In production, this would query the database
+            # For now, load from JSON file if it exists
+            import json
+            import os
+            
+            db_path = "data/otc_requests.json"
+            requests = []
+            
+            if os.path.exists(db_path):
+                try:
+                    with open(db_path, 'r') as f:
+                        requests = json.load(f)
+                except Exception as e:
+                    logger.warning("Failed to load OTC requests", error=str(e))
+            
+            # Also include in-memory purchases
+            for purchase in self.purchases:
+                requests.append({
+                    "allocation": purchase.get("tokens", 0),
+                    "price_per_token": purchase.get("price_per_token", 0.10),
+                    "amount_usd": purchase.get("total_cost", 0),
+                    "status": "approved",
+                    "timestamp": purchase.get("timestamp", datetime.now().isoformat())
+                })
+            
+            logger.info("OTC requests retrieved", count=len(requests))
+            
+            return {
+                "success": True,
+                "requests": requests,
+                "count": len(requests)
+            }
+        except Exception as e:
+            logger.error("Failed to get all OTC requests", error=str(e))
+            return {"success": False, "error": str(e)}
     
     async def _calculate_cost(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """

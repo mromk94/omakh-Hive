@@ -44,9 +44,15 @@ export const frontendAPI = {
   getInfoSnippet: (snippetId: string, showMore: boolean = false) => 
     api.get(`/info-snippet/${snippetId}?show_more=${showMore}`),
   
-  // Chat
-  chat: (userInput: string, sessionToken?: string, context?: any) => 
-    api.post('/chat', { user_input: userInput, session_token: sessionToken, context }),
+  // Chat - 🌟 Context-aware with full history
+  chat: (userInput: string, sessionToken?: string, context?: any, chatHistory?: any[], walletAddress?: string) => 
+    api.post('/chat', { 
+      user_input: userInput, 
+      session_token: sessionToken, 
+      context,
+      chat_history: chatHistory || [],
+      wallet_address: walletAddress
+    }),
   menuClick: (menuItem: string, sessionToken?: string) => 
     api.post('/menu-interaction', { menu_item: menuItem, session_token: sessionToken }),
   explainFeature: (feature: string) => api.post(`/explain/${feature}`, {}),

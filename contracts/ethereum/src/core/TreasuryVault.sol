@@ -29,6 +29,12 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
     // OMK Token
     IERC20 public immutable omkToken;
     
+    // FIX: Track deployment timestamp to prevent month drift
+    uint256 public immutable deploymentTimestamp;
+    
+    // Proposal expiration
+    uint256 public constant PROPOSAL_LIFETIME = 30 days;
+    
     // Budget categories
     enum Category {
         DEVELOPMENT,      // 0: Dev team salaries, contractors
@@ -48,10 +54,12 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
         address recipient;
         string description;
         uint256 createdAt;
+        uint256 expiresAt;        // Proposal expiration timestamp
         uint256 executedAt;
         uint256 approvals;
         bool executed;
         bool rejected;
+        bool expired;             // Manually expired flag
         mapping(address => bool) hasApproved;
     }
     
@@ -79,6 +87,7 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
     event ProposalApproved(uint256 indexed proposalId, address indexed approver, uint256 approvals);
     event ProposalExecuted(uint256 indexed proposalId, uint256 amount, address indexed recipient);
     event ProposalRejected(uint256 indexed proposalId, address indexed rejector);
+    event ProposalExpired(uint256 indexed proposalId);
     event BudgetAllocated(Category indexed category, uint256 amount);
     event MonthlyLimitSet(Category indexed category, uint256 limit);
     event EmergencyWithdrawal(address indexed to, uint256 amount, string reason);
@@ -92,6 +101,8 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
         require(_admin != address(0), "TreasuryVault: Invalid admin");
         
         omkToken = IERC20(_omkToken);
+        // FIX: Store deployment timestamp for consistent month calculation
+        deploymentTimestamp = block.timestamp;
         
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(TREASURER_ROLE, _treasurer); // Queen AI
@@ -131,9 +142,11 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
         prop.recipient = recipient;
         prop.description = description;
         prop.createdAt = block.timestamp;
+        prop.expiresAt = block.timestamp + PROPOSAL_LIFETIME;  // 30 days from creation
         prop.approvals = 0;
         prop.executed = false;
         prop.rejected = false;
+        prop.expired = false;
         
         emit ProposalCreated(proposalId, msg.sender, category, amount, recipient);
         
@@ -164,10 +177,12 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
         
         require(!prop.executed, "TreasuryVault: Already executed");
         require(!prop.rejected, "TreasuryVault: Rejected");
+        require(!prop.expired, "TreasuryVault: Proposal expired");
+        require(block.timestamp <= prop.expiresAt, "TreasuryVault: Proposal expired (time limit)");
         require(prop.approvals >= requiredApprovals, "TreasuryVault: Insufficient approvals");
         
-        // Check monthly limit
-        uint256 currentMonth = block.timestamp / 30 days;
+        // FIX: Check monthly limit using deployment-relative calculation
+        uint256 currentMonth = (block.timestamp - deploymentTimestamp) / 30 days;
         require(
             monthlySpent[prop.category][currentMonth] + prop.amount <= monthlyLimits[prop.category],
             "TreasuryVault: Monthly limit exceeded"
@@ -203,6 +218,22 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
         prop.rejected = true;
         
         emit ProposalRejected(proposalId, msg.sender);
+    }
+
+    /**
+     * @notice Expire a proposal that has passed its time limit
+     * @dev Anyone can call this for proposals past their expiration
+     */
+    function expireProposal(uint256 proposalId) external {
+        Proposal storage prop = proposals[proposalId];
+        
+        require(!prop.executed, "TreasuryVault: Already executed");
+        require(!prop.expired, "TreasuryVault: Already expired");
+        require(block.timestamp > prop.expiresAt, "TreasuryVault: Not yet expired");
+        
+        prop.expired = true;
+        
+        emit ProposalExpired(proposalId);
     }
 
     // ============ ADMIN FUNCTIONS ============
@@ -282,7 +313,8 @@ contract TreasuryVault is AccessControl, Pausable, ReentrancyGuard {
      * @notice Get current month's spending for category
      */
     function getCurrentMonthSpending(Category category) external view returns (uint256) {
-        uint256 currentMonth = block.timestamp / 30 days;
+        // FIX: Use deployment-relative calculation for consistency
+        uint256 currentMonth = (block.timestamp - deploymentTimestamp) / 30 days;
         return monthlySpent[category][currentMonth];
     }
 

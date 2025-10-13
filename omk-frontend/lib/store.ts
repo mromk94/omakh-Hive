@@ -66,7 +66,14 @@ export const useAppStore = create<AppState>((set) => ({
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme', theme);
-      document.documentElement.classList.toggle('dark', theme === 'dark');
+      // Properly add/remove dark class
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.body.style.backgroundColor = '#000000';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.body.style.backgroundColor = '#ffffff';
+      }
     }
     set({ theme });
   },

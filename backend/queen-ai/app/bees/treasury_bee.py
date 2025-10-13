@@ -59,6 +59,8 @@ class TreasuryBee(BaseBee):
             return await self._recommend_allocation(task_data)
         elif task_type == "generate_report":
             return await self._generate_spending_report(task_data)
+        elif task_type == "get_otc_balance":
+            return await self._get_otc_balance(task_data)
         else:
             return {
                 "success": False,
@@ -304,4 +306,28 @@ class TreasuryBee(BaseBee):
             }
             
         except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def _get_otc_balance(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get OTC treasury balance
+        Used by MarketDataAgent for OTC supply calculations
+        """
+        try:
+            # In production, this would query blockchain
+            # For now, return initial OTC allocation
+            # Total supply = 1B, OTC allocation = 50% = 500M OMK
+            otc_treasury_balance = 500000000  # 500M OMK
+            
+            logger.info("OTC treasury balance queried", balance=otc_treasury_balance)
+            
+            return {
+                "success": True,
+                "balance": otc_treasury_balance,
+                "total_supply": 1000000000,  # 1B OMK
+                "otc_percentage": 50.0,
+                "note": "This is initial allocation. In production, query blockchain."
+            }
+        except Exception as e:
+            logger.error("Failed to get OTC balance", error=str(e))
             return {"success": False, "error": str(e)}

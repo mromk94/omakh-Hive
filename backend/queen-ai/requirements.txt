@@ -1,7 +1,7 @@
 # Core
-# Using FastAPI 0.104.1 which is compatible with Pydantic 2.x
-fastapi>=0.104.1,<0.105.0
-uvicorn[standard]>=0.22.0,<0.23.0
+# Using FastAPI 0.115.0+ for anyio 4.x compatibility
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
 
@@ -11,7 +11,7 @@ aiohttp>=3.8.0,<4.0.0
 # LLM Providers
 google-cloud-aiplatform>=1.25.0,<2.0.0
 openai>=1.0.0,<2.0.0
-anthropic>=0.3.0,<0.4.0
+anthropic>=0.34.0
 # grok-sdk (when available)
 
 # Fetch.ai / uAgents - Temporarily disabled due to compatibility issues
@@ -23,11 +23,16 @@ asyncpg==0.30.0
 alembic==1.14.0
 redis==5.0.1
 psycopg[binary]>=3.2.0
+pymysql==1.1.0
+cryptography==41.0.7  # For MySQL SSL
 
 # Blockchain
 web3==6.11.3
 eth-account==0.10.0
-solana==0.30.2
+# Modern Solana support using solders (Rust-based, no dependency conflicts)
+solders>=0.20.0  # Solana types and primitives (Rust-based)
+# Note: Using custom RPC client in app/blockchain/solana_rpc_client.py
+# instead of legacy solana package to avoid httpx/websockets conflicts
 eth-utils==2.3.1
 
 # Data Processing
@@ -48,9 +53,13 @@ google-cloud-secret-manager==2.16.4
 google-cloud-logging==3.8.0
 
 # Utilities
-# Using version compatible with solana
-httpx>=0.23.0,<0.24.0
+# Updated for google-genai 1.42.0 compatibility
+httpx>=0.28.1,<1.0.0
+requests>=2.31.0
 tenacity==9.0.0
+psutil>=5.9.0
+anyio>=4.8.0,<5.0.0
+websockets>=13.0.0,<15.1.0
 # Using version compatible with solana
 cachetools<5.0.0,>=4.2.2
 
@@ -66,3 +75,17 @@ black==24.10.0
 flake8==7.1.1
 mypy==1.13.0
 isort==5.13.2
+pylint>=3.0.0
+
+# Security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart>=0.0.6
+
+# Security - Image Processing (Optional - NOT required for Google Cloud deployment)
+# For ImageContentScanner functionality
+Pillow>=10.0.0  # Image processing
+# pytesseract>=0.3.10  # OCR - DISABLED for cloud deployment (requires system binary)
+# Note: pytesseract requires tesseract-ocr system package
+# Install with: brew install tesseract (macOS) or apt-get install tesseract-ocr (Ubuntu)
+# For cloud deployment, use Google Cloud Vision API instead

@@ -35,6 +35,8 @@ class MathsBee(BaseBee):
             return await self._calculate_rebalance(task_data)
         elif task_type == "calculate_apy":
             return await self._calculate_apy(task_data)
+        elif task_type == "calculate_weighted_average_price":
+            return await self._calculate_weighted_average_price(task_data)
         else:
             return {
                 "success": False,
@@ -151,4 +153,57 @@ class MathsBee(BaseBee):
                 "treasury_health": treasury_health,
             }
         except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def _calculate_weighted_average_price(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate weighted average price from OTC requests
+        Used by MarketDataAgent for OTC price calculation
+        """
+        try:
+            requests = data.get("requests", [])
+            
+            if not requests:
+                return {
+                    "success": True,
+                    "average_price": 0.10,  # Default
+                    "total_requests": 0,
+                    "total_volume": 0
+                }
+            
+            total_value = 0
+            total_allocation = 0
+            
+            for req in requests:
+                try:
+                    allocation = float(req.get("allocation", 0))
+                    price = float(req.get("price_per_token", 0.10))
+                    
+                    if allocation > 0 and price > 0:
+                        total_value += allocation * price
+                        total_allocation += allocation
+                except (ValueError, TypeError):
+                    continue
+            
+            if total_allocation == 0:
+                return {
+                    "success": True,
+                    "average_price": 0.10,
+                    "total_requests": len(requests),
+                    "total_volume": 0
+                }
+            
+            average_price = total_value / total_allocation
+            
+            return {
+                "success": True,
+                "average_price": round(average_price, 4),
+                "total_requests": len(requests),
+                "total_allocation": total_allocation,
+                "total_value": total_value,
+                "min_price": min((float(r.get("price_per_token", 0.10)) for r in requests if r.get("allocation", 0) > 0), default=0.10),
+                "max_price": max((float(r.get("price_per_token", 0.10)) for r in requests if r.get("allocation", 0) > 0), default=0.10)
+            }
+        except Exception as e:
+            logger.error("Failed to calculate weighted average price", error=str(e))
             return {"success": False, "error": str(e)}

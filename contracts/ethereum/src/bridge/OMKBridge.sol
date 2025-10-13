@@ -198,16 +198,20 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
      * @param to Recipient address on Ethereum
      * @param amount Amount to release
      * @param solanaProof Proof of burn on Solana (tx signature)
+     * @param expectedNonce Expected bridge nonce (prevents transaction reordering)
      */
     function releaseTokens(
         address to,
         uint256 amount,
-        bytes32 solanaProof
+        bytes32 solanaProof,
+        uint256 expectedNonce
     ) external onlyRole(RELAYER_ROLE) whenNotPaused nonReentrant returns (uint256) {
         require(to != address(0), "OMKBridge: Invalid recipient");
         require(amount > 0, "OMKBridge: Invalid amount");
         require(solanaProof != bytes32(0), "OMKBridge: Invalid proof");
         require(!processedSolanaProofs[solanaProof], "OMKBridge: Proof already processed");
+        // FIX: Validate nonce to prevent transaction reordering attacks
+        require(bridgeNonce == expectedNonce, "OMKBridge: Invalid nonce - transaction out of order");
 
         // Check rate limit
         _checkAndUpdateRateLimit(amount);
@@ -247,13 +251,17 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
 
     /**
      * @notice Validators approve release transaction
+     * @param expectedNonce Expected nonce (for validation consistency)
      */
     function validateRelease(
         address to,
         uint256 amount,
-        bytes32 solanaProof
+        bytes32 solanaProof,
+        uint256 expectedNonce
     ) external onlyRole(VALIDATOR_ROLE) {
         require(!processedSolanaProofs[solanaProof], "OMKBridge: Already processed");
+        // FIX: Validate nonce during validation phase as well
+        require(bridgeNonce == expectedNonce, "OMKBridge: Invalid nonce");
 
         bytes32 txHash = keccak256(abi.encodePacked(to, amount, solanaProof));
         require(!hasValidated[txHash][msg.sender], "OMKBridge: Already validated");
@@ -270,11 +278,14 @@ contract OMKBridge is AccessControl, Pausable, ReentrancyGuard {
      * @dev Check and update rate limit
      */
     function _checkAndUpdateRateLimit(uint256 amount) internal {
-        // Reset daily counter if 24 hours passed
-        if (block.timestamp >= lastResetTimestamp + 1 days) {
+        // Reset daily counter if 24 hours passed (aligned to day boundaries)
+        uint256 currentDay = block.timestamp / 1 days;
+        uint256 lastDay = lastResetTimestamp / 1 days;
+        
+        if (currentDay > lastDay) {
             dailyBridgeAmount = 0;
-            lastResetTimestamp = block.timestamp;
-            emit RateLimitReset(block.timestamp);
+            lastResetTimestamp = currentDay * 1 days;  // Align to day boundary
+            emit RateLimitReset(lastResetTimestamp);
         }
 
         require(

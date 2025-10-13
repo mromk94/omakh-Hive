@@ -3,12 +3,17 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
  * @title TokenVesting
  * @dev Handles the vesting of tokens with different schedules
+ * HIGH-2 FIX: Now includes Pausable for emergency situations
  */
-contract TokenVesting is AccessControl {
+contract TokenVesting is AccessControl, Pausable {
+    // FIX: Add dedicated role for vesting creation (principle of least privilege)
+    bytes32 public constant VESTING_CREATOR_ROLE = keccak256("VESTING_CREATOR_ROLE");
+    
     struct VestingSchedule {
         uint256 totalAmount;      // Total amount of tokens to be vested
         uint256 released;         // Amount of tokens already released
@@ -31,7 +36,9 @@ contract TokenVesting is AccessControl {
         require(_token != address(0), "TokenVesting: token is zero address");
         token = IERC20(_token);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(DEFAULT_ADMIN_ROLE, _token); // Grant role to token contract so it can create schedules
+        // FIX: Grant limited VESTING_CREATOR_ROLE instead of full admin
+        _grantRole(VESTING_CREATOR_ROLE, _token);
+        _grantRole(VESTING_CREATOR_ROLE, admin);
     }
 
     /**
@@ -48,7 +55,7 @@ contract TokenVesting is AccessControl {
         uint256 cliffDurationInMonths,
         uint256 vestingDurationInMonths,
         bool isLinear
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(VESTING_CREATOR_ROLE) {
         require(beneficiary != address(0), "TokenVesting: beneficiary is zero address");
         require(totalAmount > 0, "TokenVesting: amount is 0");
         require(
@@ -73,8 +80,9 @@ contract TokenVesting is AccessControl {
 
     /**
      * @notice Releases vested tokens to the beneficiary
+     * HIGH-2 FIX: Now pausable in emergency
      */
-    function release(address beneficiary) external {
+    function release(address beneficiary) external whenNotPaused {
         VestingSchedule storage schedule = vestingSchedules[beneficiary];
         require(schedule.totalAmount > 0, "TokenVesting: no vesting schedule");
 
@@ -88,6 +96,20 @@ contract TokenVesting is AccessControl {
         );
 
         emit TokensReleased(beneficiary, releasable);
+    }
+    
+    /**
+     * @notice Pause vesting releases (emergency only)
+     */
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+    
+    /**
+     * @notice Unpause vesting releases
+     */
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 
     /**

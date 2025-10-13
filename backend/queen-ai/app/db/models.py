@@ -44,6 +44,57 @@ class PurchaseStatus(str, enum.Enum):
 
 # Models
 
+class User(Base):
+    """Platform users with demographics and activity tracking"""
+    __tablename__ = "users"
+    
+    # Core Identity
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=True)
+    wallet_address = Column(String(42), unique=True, index=True, nullable=False)
+    
+    # Demographics
+    gender = Column(String(20), nullable=True, index=True)  # male, female, other, prefer_not_to_say
+    age = Column(Integer, nullable=True)
+    country = Column(String(100), nullable=True, index=True)
+    region = Column(String(100), nullable=True, index=True)  # Tokyo, New York, London, etc.
+    city = Column(String(100), nullable=True, index=True)
+    timezone = Column(String(50), nullable=True)
+    
+    # Wallet & Financial
+    wallet_balance_usd = Column(Float, default=0.0, index=True)
+    omk_balance = Column(Float, default=0.0)
+    total_invested_usd = Column(Float, default=0.0)
+    average_transaction_usd = Column(Float, default=0.0)
+    
+    # Activity Tracking
+    is_active = Column(Boolean, default=True, index=True)
+    last_active = Column(DateTime, default=datetime.utcnow, index=True)
+    activity_score = Column(Integer, default=0, index=True)  # 0-100, calculated from interactions
+    login_count = Column(Integer, default=0)
+    transaction_count = Column(Integer, default=0)
+    
+    # KYC & Verification
+    kyc_verified = Column(Boolean, default=False, index=True)
+    kyc_level = Column(Integer, default=0)  # 0=none, 1=basic, 2=advanced, 3=institutional
+    kyc_verified_at = Column(DateTime, nullable=True)
+    email_verified = Column(Boolean, default=False)
+    email_verified_at = Column(DateTime, nullable=True)
+    
+    # Preferences
+    language = Column(String(10), default="en")
+    notification_preferences = Column(JSON, nullable=True)  # {email: bool, push: bool, sms: bool}
+    theme = Column(String(20), default="dark")  # dark, light
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    referral_code = Column(String(50), nullable=True, index=True)
+    referred_by = Column(String(50), nullable=True)
+
+
 class GovernanceProposal(Base):
     """Governance DAO Proposals"""
     __tablename__ = "governance_proposals"

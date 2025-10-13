@@ -290,11 +290,36 @@ class UserExperienceBee(BaseBee):
     
     async def _generate_contextual_response(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate contextual AI response based on user input"""
-        user_input = data.get("user_input", "").lower()
+        user_input = data.get("user_input", "")
         context = data.get("context", {})
         
+        # If admin context and LLM available, use LLM for intelligent responses
+        if context.get("admin") and self.llm_enabled and hasattr(self, 'llm') and self.llm:
+            try:
+                # Use LLM for admin chat
+                llm_response = await self.llm.generate(
+                    prompt=user_input,
+                    system_prompt="You are Queen AI, the autonomous system manager for OMK Hive. You assist administrators with system analysis, optimization, security auditing, and providing insights. Be helpful, technical, and concise.",
+                    max_tokens=1000,
+                    temperature=0.7
+                )
+                
+                if llm_response.get("success"):
+                    return {
+                        "success": True,
+                        "message": llm_response.get("text", "I'm here to help!"),
+                        "model_used": llm_response.get("model"),
+                        "llm_powered": True
+                    }
+            except Exception as e:
+                logger.error(f"LLM generation failed: {str(e)}")
+                # Fall back to pattern matching
+        
+        # Pattern matching fallback for non-admin or when LLM fails
+        user_input_lower = user_input.lower()
+        
         # Greetings
-        if any(word in user_input for word in ["hello", "hi", "hey", "greetings", "good morning", "good evening"]):
+        if any(word in user_input_lower for word in ["hello", "hi", "hey", "greetings", "good morning", "good evening"]):
             return {
                 "success": True,
                 "message": "Hello! 👋 Welcome to OMK Hive!\n\nI'm your Queen AI assistant. I can help you with:\n• Understanding OMK and how it works\n• Calculating potential returns\n• Connecting your wallet\n• Investing in tokenized real estate\n\nWhat would you like to explore?",
@@ -307,7 +332,7 @@ class UserExperienceBee(BaseBee):
             }
         
         # About / Tell me about
-        elif any(phrase in user_input for phrase in ["about you", "who are you", "what are you", "tell me about yourself", "what is this", "what is omk"]):
+        elif any(phrase in user_input_lower for phrase in ["about you", "who are you", "what are you", "tell me about yourself", "what is this", "what is omk"]):
             return {
                 "success": True,
                 "message": "I'm Queen AI! 👑🐝\n\nI manage the OMK Hive ecosystem - a platform where you can:\n• Invest in **tokenized real estate** 🏠\n• Earn **passive income** from Airbnb properties 💰\n• Start with as little as **$100** 💵\n• Own fractional shares of properties worldwide 🌍\n\nI work 24/7 to optimize liquidity, manage staking rewards, and keep your investments secure!\n\nWant to learn more about how it works?",
@@ -320,11 +345,11 @@ class UserExperienceBee(BaseBee):
             }
         
         # Help
-        elif "help" in user_input or "stuck" in user_input:
+        elif "help" in user_input_lower or "stuck" in user_input_lower:
             return await self._get_quick_help(data)
         
         # Price
-        elif "price" in user_input or "cost" in user_input:
+        elif "price" in user_input_lower or "cost" in user_input_lower:
             return {
                 "success": True,
                 "message": "Great question! 💰\n\nOMK token current price: **$0.12**\nMinimum investment: **$10 (83 OMK)**\n\nWant to see our pricing tiers?",
@@ -336,19 +361,19 @@ class UserExperienceBee(BaseBee):
             }
         
         # ROI / Returns
-        elif "roi" in user_input or "return" in user_input or "earn" in user_input or "profit" in user_input:
+        elif "roi" in user_input_lower or "return" in user_input_lower or "earn" in user_input_lower or "profit" in user_input_lower:
             return await self._get_info_snippet({"snippet_id": "roi"})
         
         # Security / Safety
-        elif "safe" in user_input or "security" in user_input or "trust" in user_input:
+        elif "safe" in user_input_lower or "security" in user_input_lower or "trust" in user_input_lower:
             return await self._get_info_snippet({"snippet_id": "security"})
         
         # How it works
-        elif ("how" in user_input and "work" in user_input) or "explain" in user_input:
+        elif ("how" in user_input_lower and "work" in user_input_lower) or "explain" in user_input_lower:
             return await self._get_info_snippet({"snippet_id": "how_it_works"})
         
         # Wallet / Connect
-        elif "wallet" in user_input or "connect" in user_input:
+        elif "wallet" in user_input_lower or "connect" in user_input_lower:
             return {
                 "success": True,
                 "message": "Let's connect your wallet! 🔗\n\nYou'll need either:\n• MetaMask (Ethereum) 💎\n• Phantom (Solana) ⚡\n\nConnecting your wallet allows you to:\n✅ View your portfolio\n✅ Invest in properties\n✅ Track earnings\n✅ Claim rewards\n\nReady to connect?",
@@ -361,7 +386,7 @@ class UserExperienceBee(BaseBee):
             }
         
         # Invest / Buy / Start
-        elif any(word in user_input for word in ["invest", "buy", "start", "begin", "property", "properties"]):
+        elif any(word in user_input_lower for word in ["invest", "buy", "start", "begin", "property", "properties"]):
             return {
                 "success": True,
                 "message": "Awesome! Let's get you started investing! 🚀\n\n**Quick Process:**\n1️⃣ Connect your wallet\n2️⃣ Browse available properties\n3️⃣ Choose how many blocks to buy\n4️⃣ Start earning passive income!\n\nWant to see available properties?",
@@ -374,7 +399,7 @@ class UserExperienceBee(BaseBee):
             }
         
         # Dashboard / Portfolio
-        elif any(word in user_input for word in ["dashboard", "portfolio", "balance", "holdings", "my account"]):
+        elif any(word in user_input_lower for word in ["dashboard", "portfolio", "balance", "holdings", "my account"]):
             return {
                 "success": True,
                 "message": "Let me show you your portfolio dashboard! 📊\n\nYou'll see:\n• Total portfolio value\n• Your holdings (crypto + real estate)\n• Recent transactions\n• Earnings overview\n\nNote: You need to connect your wallet first!",
@@ -386,7 +411,7 @@ class UserExperienceBee(BaseBee):
             }
         
         # Private Sale
-        elif any(phrase in user_input for phrase in ["private sale", "presale", "token sale", "ico", "early access"]):
+        elif any(phrase in user_input_lower for phrase in ["private sale", "presale", "token sale", "ico", "early access"]):
             return {
                 "success": True,
                 "message": "Interested in our Private Sale? 🎯\n\n**Why Join?**\n• Lowest token price ($0.100)\n• 15% bonus tokens\n• Early platform access\n• Priority support\n\n**Requirements:**\n• Minimum $500 investment\n• KYC verification\n• Vesting: 20% at TGE, rest over 6 months\n\nWant to learn more?",
@@ -399,7 +424,7 @@ class UserExperienceBee(BaseBee):
             }
         
         # Swap / Buy tokens
-        elif any(word in user_input for word in ["swap", "buy omk", "token", "purchase"]):
+        elif any(word in user_input_lower for word in ["swap", "buy omk", "token", "purchase"]):
             return {
                 "success": True,
                 "message": "Let's get you some OMK tokens! 💰\n\nYou can:\n• Swap ETH/USDT for OMK\n• See real-time prices\n• Calculate slippage\n• Execute instantly\n\nReady to swap?",

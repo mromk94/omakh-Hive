@@ -129,7 +129,7 @@ fi
 
 # Start Queen AI in background
 echo -e "${BLUE}🚀  Launching Queen AI on port 8001...${NC}"
-python main.py > "$PROJECT_ROOT/logs/queen-backend.log" 2>&1 &
+./venv/bin/python main.py > "$PROJECT_ROOT/logs/queen-backend.log" 2>&1 &
 BACKEND_PID=$!
 
 echo -e "${GREEN}✅  Queen AI started (PID: $BACKEND_PID)${NC}"

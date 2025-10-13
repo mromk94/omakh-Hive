@@ -53,8 +53,9 @@ class EmergencyControls:
         self.paused_bees: set = set()
         self.disabled_features: set = set()
         self.emergency_log: List[Dict[str, Any]] = []
-        self.circuit_breakers: Dict[str, int] = {}  # operation -> failure_count
+        self.circuit_breakers: Dict[str, Dict[str, Any]] = {}  # operation -> {failures, state, last_failure}
         self.max_failures = 5  # Circuit breaker threshold
+        self.circuit_breaker_timeout = 60  # seconds before retry
         
     def trigger_emergency_shutdown(
         self,
@@ -176,21 +177,44 @@ class EmergencyControls:
     
     def record_failure(self, operation: str) -> bool:
         """
-        Record operation failure for circuit breaker
+        Record operation failure for circuit breaker with time-based reset
         
         Returns:
             True if circuit breaker triggered (too many failures)
         """
+        from datetime import datetime
+        
+        now = datetime.now()
+        
         if operation not in self.circuit_breakers:
-            self.circuit_breakers[operation] = 0
+            self.circuit_breakers[operation] = {
+                "failures": 0,
+                "state": "CLOSED",
+                "last_failure": None
+            }
         
-        self.circuit_breakers[operation] += 1
+        breaker = self.circuit_breakers[operation]
         
-        if self.circuit_breakers[operation] >= self.max_failures:
+        # Check if we should reset (timeout expired)
+        if breaker["state"] == "OPEN" and breaker["last_failure"]:
+            seconds_since_failure = (now - breaker["last_failure"]).total_seconds()
+            if seconds_since_failure > self.circuit_breaker_timeout:
+                breaker["state"] = "HALF_OPEN"
+                breaker["failures"] = 0
+                logger.info(f"Circuit breaker {operation} moved to HALF_OPEN (testing)")
+        
+        # Record failure
+        breaker["failures"] += 1
+        breaker["last_failure"] = now
+        
+        # Trigger circuit breaker
+        if breaker["failures"] >= self.max_failures:
+            breaker["state"] = "OPEN"
             logger.error(
                 f"⚡ CIRCUIT BREAKER TRIGGERED",
                 operation=operation,
-                failures=self.circuit_breakers[operation]
+                failures=breaker["failures"],
+                state="OPEN"
             )
             
             # Auto-disable the operation
@@ -203,8 +227,21 @@ class EmergencyControls:
     def reset_circuit_breaker(self, operation: str):
         """Reset circuit breaker for operation"""
         if operation in self.circuit_breakers:
-            del self.circuit_breakers[operation]
+            self.circuit_breakers[operation] = {
+                "failures": 0,
+                "state": "CLOSED",
+                "last_failure": None
+            }
             logger.info(f"Circuit breaker reset: {operation}")
+    
+    def record_success(self, operation: str):
+        """Record successful operation (for HALF_OPEN state)"""
+        if operation in self.circuit_breakers:
+            breaker = self.circuit_breakers[operation]
+            if breaker["state"] == "HALF_OPEN":
+                breaker["state"] = "CLOSED"
+                breaker["failures"] = 0
+                logger.info(f"Circuit breaker {operation} recovered (CLOSED)")
     
     def can_operate(self) -> bool:
         """Check if system can perform operations"""

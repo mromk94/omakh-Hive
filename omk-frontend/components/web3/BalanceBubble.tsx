@@ -4,16 +4,19 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Settings, RefreshCw, User, LogOut, Copy, Check } from 'lucide-react';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAddress, formatNumber, formatCurrency } from '@/lib/utils';
+import { chatActions } from '@/lib/chatEvents';
 
 export default function BalanceBubble() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
   
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const { primaryWallet, balances, logout } = useAuthStore();
+  const { primaryWallet, balances, logout, isConnected: authConnected } = useAuthStore();
   
   // Get ETH balance
   const { data: ethBalance } = useBalance({
@@ -33,7 +36,29 @@ export default function BalanceBubble() {
     logout();
   };
 
-  if (!isConnected || !address) return null;
+  // 🌟 GOLDEN RULE: Button handlers that trigger chat
+  const handleBuyOMK = () => {
+    router.push('/chat');
+    setTimeout(() => chatActions.buyOMK(), 300);
+  };
+
+  const handleSwap = () => {
+    router.push('/chat');
+    setTimeout(() => chatActions.swap(), 300);
+  };
+
+  const handleProfile = () => {
+    router.push('/chat');
+    setTimeout(() => chatActions.showProfile(), 300);
+  };
+
+  const handleSettings = () => {
+    router.push('/chat');
+    setTimeout(() => chatActions.showSettings(), 300);
+  };
+
+  // Only show if BOTH wagmi and auth store confirm connection
+  if (!isConnected || !address || !authConnected) return null;
 
   // Calculate total portfolio value
   const totalValue = balances.reduce((sum, b) => sum + b.usdValue, 0) + 
@@ -43,7 +68,7 @@ export default function BalanceBubble() {
     <motion.div
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="fixed top-6 right-6 z-[100]"
+      className="fixed top-4 right-20 z-[90]"
     >
       {/* Collapsed View */}
       <motion.div
@@ -183,23 +208,35 @@ export default function BalanceBubble() {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Actions - 🌟 GOLDEN RULE: Trigger chat conversations */}
                 <div className="grid grid-cols-2 gap-2 pt-2">
-                  <button className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold rounded-lg transition-all text-sm">
+                  <button 
+                    onClick={handleBuyOMK}
+                    className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold rounded-lg transition-all text-sm"
+                  >
                     Buy OMK
                   </button>
-                  <button className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-100 font-semibold rounded-lg transition-all text-sm">
+                  <button 
+                    onClick={handleSwap}
+                    className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-100 font-semibold rounded-lg transition-all text-sm"
+                  >
                     Swap
                   </button>
                 </div>
 
-                {/* Footer Actions */}
+                {/* Footer Actions - 🌟 GOLDEN RULE: Trigger chat conversations */}
                 <div className="flex items-center gap-2 pt-2">
-                  <button className="flex-1 px-3 py-2 bg-stone-800/50 hover:bg-stone-800 text-stone-300 rounded-lg transition-all text-xs flex items-center justify-center gap-2">
+                  <button 
+                    onClick={handleProfile}
+                    className="flex-1 px-3 py-2 bg-stone-800/50 hover:bg-stone-800 text-stone-300 rounded-lg transition-all text-xs flex items-center justify-center gap-2"
+                  >
                     <User className="w-3 h-3" />
                     Profile
                   </button>
-                  <button className="flex-1 px-3 py-2 bg-stone-800/50 hover:bg-stone-800 text-stone-300 rounded-lg transition-all text-xs flex items-center justify-center gap-2">
+                  <button 
+                    onClick={handleSettings}
+                    className="flex-1 px-3 py-2 bg-stone-800/50 hover:bg-stone-800 text-stone-300 rounded-lg transition-all text-xs flex items-center justify-center gap-2"
+                  >
                     <Settings className="w-3 h-3" />
                     Settings
                   </button>

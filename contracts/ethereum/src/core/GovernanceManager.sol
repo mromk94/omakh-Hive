@@ -13,12 +13,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * - Proposal creation with minimum threshold
  * - 7-day voting period
  * - 10% quorum requirement
- * - Queen AI can veto dangerous proposals
+ * - Founder veto power (expires December 31, 2027)
  */
 contract GovernanceManager is AccessControl {
     
     bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
-    bytes32 public constant GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE"); // Queen AI (veto power)
+    bytes32 public constant GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE"); // Founder veto power (expires 2027)
 
     IERC20 public immutable omkToken;
     
@@ -26,6 +26,9 @@ contract GovernanceManager is AccessControl {
     uint256 public constant VOTING_PERIOD = 7 days;
     uint256 public constant QUORUM_PERCENTAGE = 10; // 10% of circulating supply
     uint256 public constant MIN_PROPOSAL_THRESHOLD = 1_000_000 * 10**18; // 1M OMK to propose
+    
+    // Founder veto expires December 31, 2027 23:59:59 UTC (1735689599)
+    uint256 public constant FOUNDER_VETO_EXPIRATION = 1735689599;
     
     enum ProposalType {
         PARAMETER_CHANGE,    // Change system parameters
@@ -95,7 +98,7 @@ contract GovernanceManager is AccessControl {
         omkToken = IERC20(_omkToken);
         
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(GUARDIAN_ROLE, _guardian); // Queen AI
+        _grantRole(GUARDIAN_ROLE, _guardian); // Founder veto power (expires Dec 31, 2027)
     }
 
     // ============ PROPOSAL FUNCTIONS ============
@@ -201,9 +204,14 @@ contract GovernanceManager is AccessControl {
     }
 
     /**
-     * @notice Veto proposal (Guardian/Queen only)
+     * @notice Veto proposal (Guardian/Founder only, expires December 31, 2027)
      */
     function vetoProposal(uint256 proposalId) external onlyRole(GUARDIAN_ROLE) {
+        require(
+            block.timestamp <= FOUNDER_VETO_EXPIRATION,
+            "GovernanceManager: Veto power expired on December 31, 2027"
+        );
+        
         Proposal storage proposal = proposals[proposalId];
         
         require(!proposal.executed, "GovernanceManager: Already executed");
@@ -303,5 +311,19 @@ contract GovernanceManager is AccessControl {
         } else {
             timeRemaining = 0;
         }
+    }
+    
+    /**
+     * @notice Check if founder veto power is still active
+     */
+    function isVetoPowerActive() external view returns (bool) {
+        return block.timestamp <= FOUNDER_VETO_EXPIRATION;
+    }
+    
+    /**
+     * @notice Get time remaining until veto power expires
+     */
+    function getVetoExpirationTime() external pure returns (uint256) {
+        return FOUNDER_VETO_EXPIRATION;
     }
 }

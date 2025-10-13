@@ -12,6 +12,7 @@ import structlog
 
 from app.llm.system_knowledge import system_knowledge
 from app.learning.observer import LearningObserver
+from app.tools.database_query_tool import DatabaseQueryTool
 
 logger = structlog.get_logger(__name__)
 
@@ -22,20 +23,31 @@ class ClaudeQueenIntegration:
     
     def __init__(self, api_key: Optional[str] = None, context: Optional[str] = None):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
-        
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.client = None
         self.model = "claude-3-5-sonnet-20241022"  # Latest Claude model
         self.conversation_history: List[Dict] = []
         self.context = context or "general"  # admin_dashboard, development, general
         self.user_role = None  # Will be set based on context
+        self.enabled = False
+        
+        # Try to initialize Claude client
+        if self.api_key:
+            try:
+                self.client = anthropic.Anthropic(api_key=self.api_key)
+                self.enabled = True
+                logger.info("Claude integration initialized", context=self.context)
+            except Exception as e:
+                logger.warning(f"Claude client initialization failed: {e}")
+                self.enabled = False
+        else:
+            logger.warning("ANTHROPIC_API_KEY not found - Claude integration disabled")
         
         # Persistent memory and learning
         self.system_knowledge = system_knowledge
         self.learning_observer = LearningObserver()
         
-        logger.info("Claude integration initialized", context=self.context)
+        # Tools
+        self.database_tool = DatabaseQueryTool()
         
     async def chat(
         self, 
@@ -54,6 +66,15 @@ class ClaudeQueenIntegration:
         Returns:
             Dict with response and metadata
         """
+        
+        # Check if Claude is available
+        if not self.enabled or not self.client:
+            return {
+                "success": False,
+                "error": "Claude integration not available. Please set ANTHROPIC_API_KEY in .env file.",
+                "fallback_message": "I'm currently not connected to Claude API. Please configure ANTHROPIC_API_KEY to enable intelligent chat responses.",
+                "timestamp": datetime.utcnow().isoformat()
+            }
         
         # Build system prompt
         system_prompt = self._build_system_prompt(system_context, include_system_info)

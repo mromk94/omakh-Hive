@@ -179,6 +179,50 @@ class LLMAbstraction:
                 )
             raise
     
+    async def generate_with_vision(
+        self,
+        prompt: str,
+        image_base64: str,
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        model: str = "gemini-2.0-flash"
+    ) -> str:
+        """
+        Generate completion with image analysis (Gemini Vision only)
+        
+        Args:
+            prompt: User prompt
+            image_base64: Base64 encoded image
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens
+            model: Model to use (must be vision-capable)
+            
+        Returns:
+            Generated text analyzing the image
+        """
+        # Only Gemini supports vision currently
+        if "gemini" not in self.providers:
+            raise ValueError("Gemini provider required for vision analysis")
+        
+        try:
+            gemini_provider = self.providers["gemini"]
+            response = await gemini_provider.generate_with_vision(
+                prompt=prompt,
+                image_base64=image_base64,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            logger.info("Vision analysis complete", 
+                       provider="gemini",
+                       output_tokens=len(response.split()))
+            
+            return response
+            
+        except Exception as e:
+            logger.error("Vision generation failed", error=str(e))
+            raise
+    
     async def switch_provider(self, provider: str):
         """
         Switch to different provider (memory persists)

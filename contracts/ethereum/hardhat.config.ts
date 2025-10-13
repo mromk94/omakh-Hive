@@ -77,7 +77,7 @@ const config: HardhatUserConfig = {
     path: "./abis",
     runOnCompile: true,
     clear: true,
-    flat: true,
+    flat: false, // Changed to false to avoid TreasuryVault naming conflict
     only: [],
     spacing: 2,
     pretty: false,

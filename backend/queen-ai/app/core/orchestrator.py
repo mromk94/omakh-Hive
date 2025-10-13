@@ -122,6 +122,11 @@ class QueenOrchestrator:
                 logger.warning(f"ASI integration skipped: {str(e)}")
                 self.asi_integration = None
             
+            # Initialize Market Data Agent
+            from app.agents.market_data_agent import MarketDataAgent
+            self.market_data_agent = MarketDataAgent(self)
+            logger.info("✅ Market Data Agent initialized")
+            
             self.initialized = True
             self.running = True
             

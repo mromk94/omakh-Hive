@@ -49,34 +49,44 @@ class RedisMessageBus:
         if not REDIS_AVAILABLE:
             logger.warning("⚠️  redis package not installed. Install with: pip install redis")
     
-    async def initialize(self):
-        """Initialize Redis connection"""
+    async def initialize(self, retry_attempts: int = 3):
+        """Initialize Redis connection with HA support"""
         if not REDIS_AVAILABLE:
             logger.error("Redis not available - falling back to in-memory")
             return
         
-        try:
-            # Create Redis client
-            self.redis = await aioredis.from_url(
-                settings.REDIS_URL,
-                encoding="utf-8",
-                decode_responses=True,
-                max_connections=50
-            )
-            
-            # Test connection
-            await self.redis.ping()
-            
-            # Initialize pub/sub
-            self.pubsub = self.redis.pubsub()
-            
-            self.initialized = True
-            logger.info(f"✅ Redis Message Bus initialized: {settings.REDIS_URL.split('@')[1] if '@' in settings.REDIS_URL else settings.REDIS_URL}")
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to Redis: {str(e)}")
-            logger.warning("Falling back to in-memory message bus")
-            self.initialized = False
+        for attempt in range(retry_attempts):
+            try:
+                # Create Redis client with HA settings
+                self.redis = await aioredis.from_url(
+                    settings.REDIS_URL,
+                    encoding="utf-8",
+                    decode_responses=True,
+                    max_connections=50,
+                    retry_on_timeout=True,
+                    socket_keepalive=True,
+                    socket_connect_timeout=5,
+                    health_check_interval=30
+                )
+                
+                # Test connection
+                await self.redis.ping()
+                
+                # Initialize pub/sub
+                self.pubsub = self.redis.pubsub()
+                
+                self.initialized = True
+                logger.info(f"✅ Redis Message Bus initialized: {settings.REDIS_URL.split('@')[1] if '@' in settings.REDIS_URL else settings.REDIS_URL}")
+                return
+                
+            except Exception as e:
+                logger.warning(f"Redis connection attempt {attempt + 1}/{retry_attempts} failed: {str(e)}")
+                if attempt < retry_attempts - 1:
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    logger.error(f"Failed to connect to Redis after {retry_attempts} attempts")
+                    logger.warning("Falling back to in-memory message bus")
+                    self.initialized = False
     
     def register_bee(self, bee_name: str):
         """Register a bee (create queue if doesn't exist)"""

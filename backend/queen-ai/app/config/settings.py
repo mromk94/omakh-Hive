@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/omk_hive"
+    # Database - MySQL (Cloud SQL compatible)
+    DATABASE_URL: str = "mysql+pymysql://root:@localhost:3306/omk-hive1"
     
-    # Redis
+    # Redis (Use Memorystore in Google Cloud)
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # Message Bus
@@ -36,8 +36,8 @@ class Settings(BaseSettings):
     GCP_LOCATION: str = "us-central1"
     GCP_CREDENTIALS_PATH: Optional[str] = None
     
-    # Blockchain - Ethereum
-    ETHEREUM_RPC_URL: str = "http://localhost:8545"
+    # Blockchain - Ethereum (Use Infura/Alchemy in production)
+    ETHEREUM_RPC_URL: str = "https://eth-mainnet.g.alchemy.com/v2/demo"
     ETHEREUM_CHAIN_ID: int = 1
     QUEEN_WALLET_PRIVATE_KEY: Optional[str] = None
     
@@ -66,17 +66,19 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
     
-    # CORS
+    # CORS (Update with production URLs for cloud deployment)
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:8080",
+        "https://*.run.app",  # Cloud Run
+        "https://*.appspot.com",  # App Engine
     ]
     
     # Learning Function
     LEARNING_FUNCTION_ENABLED: bool = False  # Disabled by default (opt-in)
     LEARNING_STORAGE_TYPE: str = "bigquery"  # local, gcs, or bigquery
-    LEARNING_STORAGE_PATH: str = "./data/learning"
+    LEARNING_STORAGE_PATH: str = "/tmp/learning"  # Use /tmp for cloud (ephemeral)
     LEARNING_STORAGE_BUCKET: Optional[str] = None
     LEARNING_BATCH_SIZE: int = 100  # Batch inserts for cost optimization
     LEARNING_RETENTION_DAYS: int = 365  # 1 year data retention

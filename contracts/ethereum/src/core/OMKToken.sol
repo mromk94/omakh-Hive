@@ -52,6 +52,12 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     uint256 public todayQueenTransfers;
     bool public queenRateLimitEnabled = true;
 
+    // Circuit Breaker - Global Volume Limits
+    uint256 public maxDailyVolume = 50_000_000 * 10**18;  // 50M OMK/day (5% of supply)
+    uint256 public dailyVolume;
+    uint256 public lastVolumeReset;
+    bool public circuitBreakerEnabled = true;
+
     // Events
     event WhitelistUpdated(address indexed account, bool isWhitelisted);
     event TreasuryUpdated(address indexed newTreasury);
@@ -60,6 +66,10 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     event QueenTransfer(address indexed from, address indexed to, uint256 amount, uint256 dailyTotal);
     event QueenRateLimitToggled(bool enabled);
     event LargeTransferAttempt(address indexed from, address indexed to, uint256 amount);
+    event TokensDistributed();
+    event CircuitBreakerTriggered(uint256 attemptedVolume, uint256 dailyLimit);
+    event CircuitBreakerReset(uint256 timestamp);
+    event MaxDailyVolumeUpdated(uint256 oldLimit, uint256 newLimit);
 
     /**
      * @dev Constructor that initializes the token with the given name and symbol
@@ -177,25 +187,41 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         
         // PRIVATE_INVESTORS_AMOUNT (100M) remains in contract for PrivateSale
 
-        // Whitelist admin and important addresses
+        // Verify total supply matches all allocations
+        uint256 expectedDistribution = 
+            FOUNDERS_AMOUNT +
+            PRIVATE_INVESTORS_AMOUNT +
+            ECOSYSTEM_AMOUNT +
+            ADVISORS_AMOUNT +
+            BREAKSWITCH_AMOUNT +
+            TREASURY_AMOUNT +
+            PUBLIC_ACQUISITION_AMOUNT;
+        
+        require(
+            expectedDistribution == TOTAL_SUPPLY,
+            "OMKToken: Supply allocation mismatch"
+        );
+        
+        emit TokensDistributed();
+    }
+
+    /**
+     * @notice Whitelists admin and important addresses
+     */
+    function _whitelistImportantAddresses(
+        address founders_,
+        address advisors_
+    ) internal {
         isWhitelisted[msg.sender] = true;
         isWhitelisted[treasuryAddress] = true;
         isWhitelisted[founders_] = true;
         isWhitelisted[advisors_] = true;
     }
 
-    /**
-     * @notice Pauses all token transfers
-     * @dev Only callable by addresses with PAUSER_ROLE
-     */
     function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
-    /**
-     * @notice Unpauses all token transfers
-     * @dev Only callable by addresses with PAUSER_ROLE
-     */
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
@@ -289,23 +315,93 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         rateLimitActive = queenRateLimitEnabled;
     }
 
+    // ============ CIRCUIT BREAKER MANAGEMENT ============
+
     /**
-     * @dev Hook that is called before any transfer of tokens
+     * @notice Set maximum daily volume (SecurityCouncil can adjust during emergency)
+     * @param newLimit New daily volume limit
+     */
+    function setMaxDailyVolume(uint256 newLimit) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 oldLimit = maxDailyVolume;
+        maxDailyVolume = newLimit;
+        emit MaxDailyVolumeUpdated(oldLimit, newLimit);
+    }
+
+    /**
+     * @notice Toggle circuit breaker
+     * @param enabled Whether to enable or disable circuit breaker
+     */
+    function setCircuitBreakerEnabled(bool enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        circuitBreakerEnabled = enabled;
+    }
+
+    /**
+     * @notice Get circuit breaker stats
+     */
+    function getCircuitBreakerStats() external view returns (
+        uint256 _maxDailyVolume,
+        uint256 _dailyVolume,
+        uint256 remainingVolume,
+        bool enabled
+    ) {
+        uint256 currentDay = block.timestamp / 1 days;
+        uint256 lastDay = lastVolumeReset / 1 days;
+        
+        // If new day, volume resets to 0
+        uint256 currentVolume = (currentDay > lastDay) ? 0 : dailyVolume;
+        
+        return (
+            maxDailyVolume,
+            currentVolume,
+            maxDailyVolume > currentVolume ? maxDailyVolume - currentVolume : 0,
+            circuitBreakerEnabled
+        );
+    }
+
+    /**
+     * @dev Override _beforeTokenTransfer for OpenZeppelin 4.x compatibility
+     * @notice This is called BEFORE balance updates
      */
     function _beforeTokenTransfer(
         address from,
         address to,
         uint256 amount
-    ) internal virtual override(ERC20, ERC20Pausable) {
-        // Check pause status
-        if (paused()) {
+    ) internal override(ERC20, ERC20Pausable) {
+        // Call parent pause check first
+        super._beforeTokenTransfer(from, to, amount);
+        
+        // Allow whitelisted addresses to transfer when paused
+        if (paused() && !isWhitelisted[from] && !isWhitelisted[to]) {
             require(
-                from == address(0) || // Allow minting when paused
-                to == address(0) ||   // Allow burning when paused
-                isWhitelisted[from] || // Allow whitelisted addresses to transfer when paused
-                isWhitelisted[to],
+                from == address(0) || to == address(0),
                 "OMKToken: token transfer while paused"
             );
+        }
+
+        // Circuit Breaker - Global Volume Limit (skip for minting/burning/whitelisted)
+        if (circuitBreakerEnabled && 
+            from != address(0) && 
+            to != address(0) && 
+            !isWhitelisted[from] && 
+            !isWhitelisted[to]) {
+            
+            uint256 currentDay = block.timestamp / 1 days;
+            uint256 lastDay = lastVolumeReset / 1 days;
+            
+            // Reset daily volume at day boundary
+            if (currentDay > lastDay) {
+                dailyVolume = 0;
+                lastVolumeReset = currentDay * 1 days;
+                emit CircuitBreakerReset(lastVolumeReset);
+            }
+            
+            // Check circuit breaker
+            if (dailyVolume + amount > maxDailyVolume) {
+                emit CircuitBreakerTriggered(dailyVolume + amount, maxDailyVolume);
+                revert("OMKToken: Circuit breaker triggered - daily volume limit exceeded");
+            }
+            
+            dailyVolume += amount;
         }
 
         // Apply Queen rate limiting (if enabled)
@@ -335,8 +431,6 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
                 emit LargeTransferAttempt(from, to, amount);
             }
         }
-
-        super._beforeTokenTransfer(from, to, amount);
     }
     
     /**

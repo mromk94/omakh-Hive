@@ -89,48 +89,31 @@ export default function GreetingScreen() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden relative">
-      {/* MASSIVE Animated Background */}
+      {/* Optimized Background - Reduced glitching */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
         <motion.div
           animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 180, 360],
-            x: [0, 100, 0],
-            y: [0, -100, 0],
+            rotate: [0, 360],
           }}
           transition={{
-            duration: 20,
+            duration: 40,
             repeat: Infinity,
             ease: "linear",
           }}
+          style={{ willChange: 'transform' }}
           className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-yellow-600 to-amber-700 rounded-full blur-3xl"
         />
         <motion.div
           animate={{
-            scale: [1, 1.3, 1],
-            rotate: [360, 180, 0],
-            x: [0, -100, 0],
-            y: [0, 100, 0],
+            rotate: [0, -360],
           }}
           transition={{
-            duration: 25,
+            duration: 50,
             repeat: Infinity,
             ease: "linear",
           }}
+          style={{ willChange: 'transform' }}
           className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.4, 1],
-            x: [0, 150, -150, 0],
-            y: [0, -150, 150, 0],
-          }}
-          transition={{
-            duration: 30,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-gradient-to-br from-amber-600 to-yellow-800 rounded-full blur-3xl"
         />
       </div>
 
@@ -175,7 +158,7 @@ export default function GreetingScreen() {
           )}
         </AnimatePresence>
 
-        {/* Subtitle */}
+        {/* Subtitle - No country names, just welcome */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -208,24 +191,18 @@ export default function GreetingScreen() {
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ 
                     opacity: 1, 
-                    scale: [1, 1.1, 1],
+                    scale: 1,
                   }}
                   transition={{ 
                     delay: 0.1 * idx,
-                    scale: {
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }
                   }}
                   whileHover={{ scale: 1.3 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleLanguageSelect(key)}
-                  className="text-5xl transition-all"
+                  className="text-5xl transition-all cursor-pointer"
                   style={{
                     filter: 'drop-shadow(0 0 20px rgba(234, 179, 8, 0.6))'
                   }}
-                  title={greetings[key].name}
                 >
                   {greetings[key].flag}
                 </motion.button>

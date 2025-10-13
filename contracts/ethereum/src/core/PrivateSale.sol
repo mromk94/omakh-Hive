@@ -34,8 +34,10 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
     // Sale parameters
     uint256 public constant TOTAL_SALE_AMOUNT = 100_000_000 * 10**18; // 100M tokens
     uint256 public constant TIER_SIZE = 10_000_000 * 10**18; // 10M tokens per tier
-    uint256 public constant WHALE_LIMIT = 20_000_000 * 10**18; // 20M max per investor
+    uint256 public constant WHALE_LIMIT = 10_000_000 * 10**18; // 10M max per investor (updated per user request)
     uint256 public constant TOTAL_TIERS = 10;
+    uint256 public constant MAX_RAISE_USD = 12_250_000 * 10**6; // $12.25M max raise (6 decimals)
+    uint256 public constant MIN_PURCHASE = 2000 * 10**18; // 2000 OMK minimum purchase (updated per user request)
 
     // Tier pricing (in mills = $0.001, so 100 = $0.100)
     uint256[TOTAL_TIERS] public tierPrices = [
@@ -92,6 +94,7 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
     event PaymentTokenUpdated(address indexed token, bool accepted);
     event FundsWithdrawn(address indexed token, uint256 amount, address indexed recipient);
     event TierAdvanced(uint256 newTier, uint256 timestamp);
+    event VestingSetupComplete(address indexed investor, address indexed vestingContract, uint256 amount);
 
     constructor(
         address _omkToken,
@@ -198,11 +201,11 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
         require(saleActive, "PrivateSale: Sale not active");
         require(investments[msg.sender].isWhitelisted, "PrivateSale: Not whitelisted");
         require(acceptedPaymentTokens[paymentToken], "PrivateSale: Payment token not accepted");
-        require(amount > 0, "PrivateSale: Amount must be positive");
+        require(amount >= MIN_PURCHASE, "PrivateSale: Below minimum purchase");
         
         // Check whale limit
         uint256 newTotal = investments[msg.sender].totalPurchased + amount;
-        require(newTotal <= WHALE_LIMIT, "PrivateSale: Exceeds whale limit (20M)");
+        require(newTotal <= WHALE_LIMIT, "PrivateSale: Exceeds whale limit (10M)");
         
         // Check if enough tokens available
         require(totalSold + amount <= TOTAL_SALE_AMOUNT, "PrivateSale: Exceeds total sale amount");
@@ -210,6 +213,10 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
         // Calculate payment required
         uint256 paymentRequired = calculatePayment(amount);
         require(paymentRequired <= maxPayment, "PrivateSale: Payment exceeds maximum");
+        
+        // HIGH-3 FIX: Check USD raise cap
+        uint256 currentRaised = getTotalRaisedUSD();
+        require(currentRaised + paymentRequired <= MAX_RAISE_USD, "PrivateSale: Max raise exceeded");
         
         // Process the purchase
         _processPurchase(msg.sender, amount, paymentToken, paymentRequired);
@@ -275,7 +282,9 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
             // tierPrices[tier] is in mills (100 = $0.100)
             // toAllocate is in 18 decimals (OMK)
             // Result should be in 6 decimals (USDC)
-            uint256 tierPayment = (toAllocate * tierPrices[tier]) / (1000 * 10**12);
+            // FIX: Rearrange to minimize precision loss
+            // (toAllocate / 10**12) first, then multiply, then divide
+            uint256 tierPayment = (toAllocate / 10**12) * tierPrices[tier] / 1000;
             payment += tierPayment;
             
             remainingAmount -= toAllocate;
@@ -343,25 +352,35 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
     function setupVestingForInvestor(address investor)
         external
         onlyRole(SALE_MANAGER_ROLE)
+        whenNotPaused
     {
         require(investments[investor].totalPurchased > 0, "PrivateSale: No tokens purchased");
         require(investments[investor].vestingContract == address(0), "PrivateSale: Vesting already setup");
         
+        uint256 amount = investments[investor].totalPurchased;
+        
+        // CRITICAL FIX: Check balance BEFORE any operations
+        require(omkToken.balanceOf(address(this)) >= amount, "PrivateSale: Insufficient balance");
+        
         // Create vesting contract
         TokenVesting vesting = new TokenVesting(address(omkToken), address(this));
-        investments[investor].vestingContract = address(vesting);
         
         // Transfer tokens to vesting contract
-        omkToken.safeTransfer(address(vesting), investments[investor].totalPurchased);
+        omkToken.safeTransfer(address(vesting), amount);
         
         // Create vesting schedule (12m cliff + 18m linear)
         vesting.createVestingSchedule(
             investor,
-            investments[investor].totalPurchased,
+            amount,
             VESTING_CLIFF_MONTHS,
             VESTING_DURATION_MONTHS,
             false // Cliff then linear (25% at cliff, 75% linear)
         );
+        
+        // CRITICAL FIX: Set address ONLY after all operations succeed
+        investments[investor].vestingContract = address(vesting);
+        
+        emit VestingSetupComplete(investor, address(vesting), amount);
     }
 
     /**
@@ -371,26 +390,36 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
     function batchSetupVesting(address[] calldata investors)
         external
         onlyRole(SALE_MANAGER_ROLE)
+        whenNotPaused
     {
         for (uint256 i = 0; i < investors.length; i++) {
             if (investments[investors[i]].totalPurchased > 0 && 
                 investments[investors[i]].vestingContract == address(0)) {
                 
+                uint256 amount = investments[investors[i]].totalPurchased;
+                
+                // CRITICAL FIX: Check balance BEFORE operations
+                require(omkToken.balanceOf(address(this)) >= amount, "PrivateSale: Insufficient balance");
+                
                 // Create vesting contract
                 TokenVesting vesting = new TokenVesting(address(omkToken), address(this));
-                investments[investors[i]].vestingContract = address(vesting);
                 
                 // Transfer tokens to vesting contract
-                omkToken.safeTransfer(address(vesting), investments[investors[i]].totalPurchased);
+                omkToken.safeTransfer(address(vesting), amount);
                 
                 // Create vesting schedule
                 vesting.createVestingSchedule(
                     investors[i],
-                    investments[investors[i]].totalPurchased,
+                    amount,
                     VESTING_CLIFF_MONTHS,
                     VESTING_DURATION_MONTHS,
                     false
                 );
+                
+                // CRITICAL FIX: Set address ONLY after all operations succeed
+                investments[investors[i]].vestingContract = address(vesting);
+                
+                emit VestingSetupComplete(investors[i], address(vesting), amount);
             }
         }
     }
@@ -398,7 +427,7 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
     /**
      * @notice Calculate total raised USD (estimated)
      */
-    function getTotalRaisedUSD() external view returns (uint256 totalUSD) {
+    function getTotalRaisedUSD() public view returns (uint256 totalUSD) {
         for (uint256 i = 0; i < TOTAL_TIERS; i++) {
             // tierSales[i] is in 18 decimals (OMK)
             // tierPrices[i] is in mills ($0.001)

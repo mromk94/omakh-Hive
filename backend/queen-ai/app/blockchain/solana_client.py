@@ -14,19 +14,51 @@ Implements:
 import asyncio
 from typing import Dict, Any, Optional, List
 from decimal import Decimal
-from solders.keypair import Keypair
-from solders.pubkey import Pubkey
-from solders.transaction import Transaction
-from solders.system_program import transfer, TransferParams
-from solders.compute_budget import set_compute_unit_price, set_compute_unit_limit
-from solana.rpc.async_api import AsyncClient
-from solana.rpc.commitment import Confirmed, Finalized
-from solana.rpc.types import TxOpts
 import structlog
 
 from app.config.settings import settings
 
 logger = structlog.get_logger(__name__)
+
+# Use modern Solana implementation (compatible with httpx>=0.28.1)
+try:
+    from solders.keypair import Keypair
+    from solders.pubkey import Pubkey
+    from solders.transaction import Transaction
+    from solders.system_program import transfer, TransferParams
+    from solders.compute_budget import set_compute_unit_price, set_compute_unit_limit
+    # Use our custom RPC client instead of legacy solana package
+    from app.blockchain.solana_rpc_client import AsyncClient, SOLDERS_AVAILABLE
+    SOLANA_AVAILABLE = SOLDERS_AVAILABLE
+    
+    # Mock commitment types for compatibility
+    class Confirmed:
+        """Confirmed commitment level"""
+        pass
+    
+    class Finalized:
+        """Finalized commitment level"""
+        pass
+    
+    class TxOpts:
+        """Transaction options"""
+        def __init__(self, skip_preflight=False, preflight_commitment=None):
+            self.skip_preflight = skip_preflight
+            self.preflight_commitment = preflight_commitment or "finalized"
+    
+    logger.info("✅ Modern Solana client loaded (using solders + custom RPC client)")
+    
+except ImportError as e:
+    logger.warning(f"Solana dependencies not available: {e}. Solana functionality will be disabled.")
+    SOLANA_AVAILABLE = False
+    # Create mock classes
+    Keypair = None
+    Pubkey = None
+    Transaction = None
+    AsyncClient = None
+    Confirmed = None
+    Finalized = None
+    TxOpts = None
 
 
 class SolanaClient:
@@ -44,10 +76,14 @@ class SolanaClient:
     """
     
     def __init__(self, rpc_url: Optional[str] = None):
+        if not SOLANA_AVAILABLE:
+            logger.warning("Solana client initialized but Solana dependencies not available")
+        
         self.rpc_url = rpc_url or settings.SOLANA_RPC_URL or "https://api.mainnet-beta.solana.com"
         self.client: Optional[AsyncClient] = None
         self.keypair: Optional[Keypair] = None
         self.initialized = False
+        self.available = SOLANA_AVAILABLE
         
         # Fee optimization
         self.priority_fee_percentile = 50  # Median
@@ -60,6 +96,10 @@ class SolanaClient:
         Args:
             private_key: Optional private key bytes for signing
         """
+        if not SOLANA_AVAILABLE:
+            logger.warning("Cannot initialize Solana client - dependencies not available")
+            return
+        
         try:
             # Create async client
             self.client = AsyncClient(self.rpc_url)

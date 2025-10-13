@@ -51,7 +51,9 @@ class BlockchainConnector:
             self.w3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_RPC_URL))
             
             if not self.w3.is_connected():
-                raise ConnectionError("Failed to connect to Ethereum node")
+                logger.warning("⚠️  Failed to connect to Ethereum node - blockchain features disabled")
+                self.initialized = False
+                return
             
             logger.info("Connected to Ethereum", 
                        chain_id=self.w3.eth.chain_id,
@@ -71,8 +73,8 @@ class BlockchainConnector:
             logger.info("Blockchain connector initialized successfully")
             
         except Exception as e:
-            logger.error("Failed to initialize blockchain connector", error=str(e))
-            raise
+            logger.warning("⚠️  Blockchain connector initialization failed - running without blockchain", error=str(e))
+            self.initialized = False
     
     async def _load_contracts(self):
         """Load all contract instances"""
