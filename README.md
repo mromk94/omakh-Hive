@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-orange)](https://soliditylang.org/)
-[![Python](https://img.shields.io/badge/Python-3.11-green)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.13-green)](https://www.python.org/)
 
 ## 🌟 Overview
 
@@ -14,7 +14,7 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
 ### Key Features
 
 - **👑 Queen Autonomy**: 24/7 autonomous operations with multi-layer safeguards
-- **🤖 AI Orchestration**: Queen AI with 16+ specialized bee agents
+- **🤖 AI Orchestration**: Queen AI with 19 specialized bee agents
 - **💰 Autonomous Treasury**: AI-managed allocation and investments (400M OMK)
 - **🔄 Cross-Chain**: Ethereum + Solana with seamless bridge
 - **📊 Dynamic Economics**: AI-adjusted APY, liquidity, and tokenomics
@@ -64,11 +64,11 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
 ### Prerequisites
 
 - **Node.js**: v20+
-- **Python**: 3.11+
-- **Docker**: Latest
-- **pnpm**: Latest (or npm/yarn)
-- **Hardhat**: For smart contracts
-- **Rust**: For Solana programs
+- **Python**: 3.13+
+- **npm**: Latest
+- **Google Cloud SDK**: For deployment
+- **Hardhat**: For smart contracts (optional)
+- **Rust**: For Solana programs (optional)
 
 ### Installation
 
@@ -77,39 +77,51 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
 git clone https://github.com/mromk94/omakh-Hive.git
 cd omakh-Hive
 
-# Run setup script
-make setup
+# Backend setup
+cd backend/queen-ai
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env  # Configure your environment
+python3 main.py
 
-# Start development environment
-make dev
+# Frontend setup (new terminal)
+cd omk-frontend
+npm install
+npm run dev
 ```
 
 Visit:
-- Frontend: http://localhost:3001
-- API Gateway: http://localhost:3000
-- Queen AI: http://localhost:8000
+- **Frontend**: http://localhost:3001
+- **Queen AI API**: http://localhost:8001
+- **Production API**: https://omk-queen-ai-475745165557.us-central1.run.app
 
-## 📦 Monorepo Structure
+## 📦 Project Structure
 
 ```
 omakh-Hive/
-├── contracts/              # Smart contracts
+├── backend/
+│   └── queen-ai/          # FastAPI Backend + Queen AI
+│       ├── app/
+│       │   ├── api/v1/    # REST API endpoints
+│       │   ├── bees/      # 19 specialized bee agents
+│       │   ├── core/      # Orchestrator, message bus, hive board
+│       │   ├── llm/       # Multi-LLM abstraction (Gemini, GPT-4, Claude, Grok)
+│       │   └── blockchain/# Ethereum + Solana integration
+│       ├── data/          # File-based storage (JSON)
+│       ├── main.py        # FastAPI application
+│       └── requirements.txt
+├── omk-frontend/          # Next.js Frontend
+│   ├── app/               # App router pages
+│   ├── components/        # React components
+│   └── hooks/             # WebSocket + custom hooks
+├── contracts/
 │   ├── ethereum/          # Solidity contracts
-│   ├── solana/            # Rust programs
-│   └── bridge/            # Cross-chain bridge
-├── backend/               # Backend services
-│   ├── api-gateway/       # NestJS API
-│   ├── queen-ai/          # Python FastAPI Queen
-│   ├── bees/              # Bee agents
-│   └── shared/            # Shared utilities
-├── frontend/              # Frontend applications
-│   └── web/               # Next.js web app
-├── infrastructure/        # IaC and deployments
-│   ├── terraform/         # GCP infrastructure
-│   ├── k8s/               # Kubernetes manifests
-│   └── helm/              # Helm charts
-├── docs/                  # Documentation
-└── scripts/               # Utility scripts
+│   ├── solana/            # Rust programs (planned)
+│   └── bridge/            # Cross-chain bridge (planned)
+└── infrastructure/        # Deployment configs
+    ├── k8s/               # Kubernetes manifests
+    └── terraform/         # GCP infrastructure (planned)
 ```
 
 ## 🛠️ Technology Stack
@@ -120,10 +132,11 @@ omakh-Hive/
 - **Fetch.ai**: CosmWasm, uAgents
 
 ### Backend
-- **API Gateway**: NestJS, TypeScript, TypeORM, GraphQL
-- **Queen AI**: Python, FastAPI, uAgents, structlog
-- **Databases**: PostgreSQL, Redis
-- **Message Bus**: Kafka / Redis Streams
+- **Queen AI**: Python 3.13, FastAPI, structlog
+- **Multi-LLM**: Google Gemini (primary), OpenAI GPT-4, Anthropic Claude 3.5, X Grok
+- **Storage**: File-based JSON (MySQL/PostgreSQL planned)
+- **Message Bus**: In-memory (Redis planned)
+- **WebSockets**: Real-time Hive Intelligence updates
 
 ### AI/ML
 - **Primary LLM**: Google Gemini 1.5 (Vertex AI)
@@ -138,13 +151,10 @@ omakh-Hive/
 - **Web3**: Wagmi, Viem, @solana/web3.js
 
 ### Infrastructure (GCP)
-- **Compute**: Google Kubernetes Engine (GKE)
-- **Database**: Cloud SQL (PostgreSQL)
-- **Cache**: Memorystore (Redis)
-- **Storage**: Cloud Storage
-- **CI/CD**: Cloud Build, Artifact Registry
-- **Monitoring**: Cloud Monitoring, Cloud Logging
-- **Secrets**: Secret Manager
+- **Compute**: Cloud Run (currently deployed)
+- **CI/CD**: Cloud Build, Artifact Registry, GitHub
+- **Monitoring**: Cloud Logging
+- **Future**: GKE, Cloud SQL, Memorystore, Secret Manager
 
 ## 👑 Queen Autonomy Architecture
 
@@ -217,44 +227,58 @@ omakh-Hive/
 ## 🧪 Testing
 
 ```bash
-# Run all tests
-make test
+# Backend tests
+cd backend/queen-ai
+pytest tests/ -v
 
-# Test specific component
-make test-contracts      # Smart contracts
-make test-backend        # Backend services
-make test-queen          # Queen AI
-make test-frontend       # Frontend
+# Frontend tests  
+cd omk-frontend
+npm test
+
+# Contract tests
+cd contracts/ethereum
+npx hardhat test
 ```
 
 ## 🚢 Deployment
 
-### Development
+### Google Cloud Run (Production)
 ```bash
-make deploy-dev
+cd backend/queen-ai
+
+# Build and deploy
+gcloud builds submit --tag=gcr.io/omk-hive/omk-queen-ai
+gcloud run deploy omk-queen-ai \
+  --image gcr.io/omk-hive/omk-queen-ai \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated
 ```
 
-### Staging
-```bash
-make deploy-staging
-```
+**Live Backend**: https://omk-queen-ai-475745165557.us-central1.run.app
 
-### Production
+### Frontend (Netlify)
 ```bash
-make deploy-production
+cd omk-frontend
+npm run build
+# Deploy via Netlify CLI or GitHub integration
 ```
-
-See [Deployment Guide](docs/deployment/README.md) for details.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+**Development Guidelines:**
+- Follow existing code style
+- Add tests for new features
+- Update documentation
+- Test locally before pushing
 
 ## 📄 License
 
@@ -273,20 +297,22 @@ Built by the OMK Hive team with ❤️
 
 ## 📊 Project Status
 
-**Current Phase**: Prime Task 2 - Smart Contract Development  
+**Current Phase**: Active Development - Core Features  
 **Progress**:
-- ✅ PRIME TASK 1: Foundation & Setup (74% complete)
-- 🚧 PRIME TASK 2: Smart Contracts (30% complete)
-  - ✅ OMKToken.sol with Queen autonomy safeguards
-  - ✅ QueenController.sol with operation tracking
-  - ✅ PrivateSale.sol with tiered pricing
-  - ✅ TokenVesting.sol utility
-  - ⏳ TreasuryVault.sol (pending)
-  - ⏳ LiquiditySentinel.sol (pending)
-- ⏳ PRIME TASK 3: AI Core (not started)
+- ✅ Queen AI Orchestrator with 19 specialized bee agents
+- ✅ Multi-LLM integration (Gemini, GPT-4, Claude, Grok)
+- ✅ FastAPI backend deployed to Google Cloud Run
+- ✅ Next.js frontend with Kingdom admin dashboard
+- ✅ Hive Intelligence real-time WebSocket
+- ✅ Ethereum smart contracts (OMKToken, QueenController, PrivateSale)
+- ✅ Background initialization for instant startup
+- 🚧 Database migration (file → MySQL/PostgreSQL)
+- 🚧 Solana programs
+- 🚧 Cross-chain bridge
 
 **Status**: Active Development  
-**Target Launch**: December 2025
+**Deployed**: Backend live on Google Cloud Run  
+**Target Launch**: Q1 2026
 
 ---
 
