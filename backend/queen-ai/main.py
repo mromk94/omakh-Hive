@@ -74,7 +74,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("🛑 Shutting down Queen AI")
-    await queen.shutdown()
+    if app.state.queen:
+        await app.state.queen.shutdown()
 
 
 def create_app() -> FastAPI:
