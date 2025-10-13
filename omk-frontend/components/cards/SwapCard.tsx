@@ -30,7 +30,9 @@ export default function SwapCard({ theme = 'dark', onSwap, demoMode = true }: Sw
   // Get ETH balance
   const { data: ethBalance } = useBalance({
     address: address as `0x${string}`,
-    enabled: isConnected
+    query: {
+      enabled: isConnected
+    }
   });
 
   const balance = selectedToken === 'ETH' && ethBalance 
