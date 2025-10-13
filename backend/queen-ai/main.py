@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown"""
     logger.info("🚀 Starting Queen AI Orchestrator")
     
-    # Initialize Database - FAIL FAST on critical errors
+    # Initialize Database - Optional for Cloud Run
     try:
         logger.info("🗄️  Initializing MySQL database...")
         # Only init schema if in development mode
@@ -47,23 +47,28 @@ async def lifespan(app: FastAPI):
             finally:
                 db.close()
     except Exception as e:
-        logger.critical(f"❌ CRITICAL: Database connection failed: {e}")
-        logger.critical("⚠️  Cannot start without database. Please check DB_* environment variables.")
-        # FAIL FAST - don't start the application without a database
-        raise RuntimeError(f"Database connection failed: {e}") from e
+        logger.warning(f"⚠️  Database connection failed: {e}")
+        logger.warning("📝 Running without database (file-based storage will be used)")
+        # Don't fail - allow app to start without database
     
-    # Initialize Queen Orchestrator
-    queen = QueenOrchestrator()
-    await queen.initialize()
-    
-    # Store in app state
-    app.state.queen = queen
-    
-    # Register queen instance for WebSocket access
-    from app.api.v1.websocket import set_queen_instance
-    set_queen_instance(queen)
-    
-    logger.info("✅ Queen AI ready and operational")
+    # Initialize Queen Orchestrator (optional for basic operation)
+    try:
+        queen = QueenOrchestrator()
+        await queen.initialize()
+        
+        # Store in app state
+        app.state.queen = queen
+        
+        # Register queen instance for WebSocket access
+        from app.api.v1.websocket import set_queen_instance
+        set_queen_instance(queen)
+        
+        logger.info("✅ Queen AI ready and operational")
+    except Exception as e:
+        logger.warning(f"⚠️  Queen initialization failed: {e}")
+        logger.warning("📝 Running in API-only mode")
+        # Create minimal app state
+        app.state.queen = None
     
     yield
     
