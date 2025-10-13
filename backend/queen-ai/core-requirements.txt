@@ -9,7 +9,7 @@ pydantic-settings==2.1.0
 # Database (PostgreSQL)
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
-alembic==1.13.0
+alembic==1.17.0
 
 # Cache & Message Queue (Redis)
 redis==5.0.1
