@@ -6,7 +6,7 @@ redis==5.0.1
 psycopg[binary]>=3.2.0
 
 # Blockchain
-web3==6.11.3
+web3==7.14.0
 eth-account==0.10.0
 solana==0.30.2
 eth-utils==2.3.1
