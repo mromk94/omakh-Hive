@@ -39,7 +39,7 @@
     "zod": "^3.22.4",
     "@hookform/resolvers": "^3.3.2",
     "sonner": "^1.2.0",
-    "lucide-react": "^0.294.0"
+    "lucide-react": "^0.546.0"
   },
   "devDependencies": {
     "@types/node": "^20",
