@@ -43,14 +43,14 @@ class CodeProposalSystem:
                 project_root = current_file.parent.parent.parent.parent.parent
         
         self.project_root = Path(project_root)
-        self.proposals_dir = self.project_root / "proposals"
-        self.sandbox_dir = self.project_root / "sandbox"
-        self.backups_dir = self.project_root / "backups"
+        base_dir = Path(os.getenv("QUEEN_SYSTEM_DIR", "/tmp/.queen_system"))
+        self.proposals_dir = base_dir / "proposals"
+        self.sandbox_dir = base_dir / "sandbox"
+        self.backups_dir = base_dir / "backups"
         
-        # Create directories if they don't exist
-        self.proposals_dir.mkdir(exist_ok=True)
-        self.sandbox_dir.mkdir(exist_ok=True)
-        self.backups_dir.mkdir(exist_ok=True)
+        self.proposals_dir.mkdir(parents=True, exist_ok=True)
+        self.sandbox_dir.mkdir(parents=True, exist_ok=True)
+        self.backups_dir.mkdir(parents=True, exist_ok=True)
         
         self.proposals: Dict[str, Dict] = self._load_proposals()
     
