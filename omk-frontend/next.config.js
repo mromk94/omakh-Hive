@@ -16,6 +16,13 @@ const nextConfig = {
   
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
+    // Stub optional Node-only modules that leak into client bundles
+    config.resolve = config.resolve || {}
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      'pino-pretty': false,
+      '@react-native-async-storage/async-storage': false,
+    }
     // Production optimizations
     if (!dev && !isServer) {
       // Code splitting optimization
@@ -69,11 +76,7 @@ const nextConfig = {
   // Compress pages
   compress: true,
   
-  // Experimental features for better performance
-  experimental: {
-    optimizeCss: true, // Enable CSS optimization
-    optimizePackageImports: ['lucide-react', 'framer-motion'], // Tree-shake these packages
-  },
+  // Experimental features disabled to avoid missing optional deps during build
   
   // SWC minification (faster than Terser)
   swcMinify: true,
