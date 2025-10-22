@@ -40,6 +40,6 @@ ENV PORT 8080
 ENV PYTHONUNBUFFERED 1
 EXPOSE 8080
 
-# Start with uvicorn - use exec form with port 8080 directly
-# Use minimal version for testing Cloud Run deployment
-CMD ["uvicorn", "main_minimal:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start with uvicorn, binding to Cloud Run's PORT (default 8080)
+# Use sh -c so ${PORT} is expanded at runtime
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
