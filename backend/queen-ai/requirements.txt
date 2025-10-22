@@ -28,7 +28,7 @@ pymysql==1.1.0
 cryptography==41.0.7  # For MySQL SSL
 
 # Blockchain
-web3==6.11.3
+web3==7.14.0
 eth-account==0.10.0
 # Modern Solana support using solders (Rust-based, no dependency conflicts)
 solders>=0.20.0  # Solana types and primitives (Rust-based)
