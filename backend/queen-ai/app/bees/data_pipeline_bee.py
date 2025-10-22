@@ -251,7 +251,14 @@ class DataPipelineBee(BaseBee):
             if json_data.get('blockchain'):
                 csv_file = input_file.replace('.json', '_blockchain.csv')
                 with open(csv_file, 'w', newline='') as f:
-                    writer = csv.writer(f)
+                    writer = csv.writer(
+                        f,
+                        delimiter=',',
+                        quotechar='"',
+                        quoting=csv.QUOTE_MINIMAL,
+                        escapechar='\\',
+                        lineterminator='\n'
+                    )
                     writer.writerow([
                         'timestamp', 'table', 'transaction_hash', 'block_number',
                         'from_address', 'to_address', 'value', 'gas_price', 'status'
@@ -277,7 +284,14 @@ class DataPipelineBee(BaseBee):
             if json_data.get('dex'):
                 csv_file = input_file.replace('.json', '_dex.csv')
                 with open(csv_file, 'w', newline='') as f:
-                    writer = csv.writer(f)
+                    writer = csv.writer(
+                        f,
+                        delimiter=',',
+                        quotechar='"',
+                        quoting=csv.QUOTE_MINIMAL,
+                        escapechar='\\',
+                        lineterminator='\n'
+                    )
                     writer.writerow([
                         'timestamp', 'table', 'pool_address', 'dex',
                         'token_a', 'token_b', 'liquidity_usd', 'volume_24h',
@@ -305,7 +319,14 @@ class DataPipelineBee(BaseBee):
             if json_data.get('oracle'):
                 csv_file = input_file.replace('.json', '_oracle.csv')
                 with open(csv_file, 'w', newline='') as f:
-                    writer = csv.writer(f)
+                    writer = csv.writer(
+                        f,
+                        delimiter=',',
+                        quotechar='"',
+                        quoting=csv.QUOTE_MINIMAL,
+                        escapechar='\\',
+                        lineterminator='\n'
+                    )
                     writer.writerow([
                         'timestamp', 'table', 'oracle', 'pair',
                         'price', 'confidence', 'feed_address'

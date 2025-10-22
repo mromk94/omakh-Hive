@@ -21,6 +21,8 @@ from app.bees.manager import BeeManager
 from app.core.message_bus import MessageBus
 from app.core.hive_board import HiveInformationBoard
 from app.uagents.integration import ASIIntegration
+from app.integrations.elastic_search import ElasticSearchIntegration
+import os
 
 logger = structlog.get_logger(__name__)
 
@@ -44,7 +46,12 @@ class QueenOrchestrator:
         self.llm = LLMAbstraction()  # Queen has LLM for intelligent orchestration
         self.message_bus = MessageBus()
         self.hive_board = HiveInformationBoard()
-        self.bee_manager = BeeManager(llm_abstraction=self.llm)  # Provide LLM to bees
+        self.elastic = None
+        _elastic_endpoint = os.getenv('ELASTIC_CLOUD_ID') or os.getenv('ELASTIC_ENDPOINT')
+        _elastic_api_key = os.getenv('ELASTIC_API_KEY')
+        if _elastic_endpoint and (_elastic_endpoint.startswith('http') or _elastic_api_key):
+            self.elastic = ElasticSearchIntegration()
+        self.bee_manager = BeeManager(llm_abstraction=self.llm, elastic_search=self.elastic)  # Provide LLM + Elastic to bees
         self.decision_engine = DecisionEngine(self.llm)
         self.asi_integration = None  # ASI/Fetch.ai integration (optional)
         
@@ -151,7 +158,7 @@ class QueenOrchestrator:
     async def shutdown(self):
         """Graceful shutdown"""
         logger.info("🛑 Shutting down Queen AI Orchestrator")
-        
+
         self.running = False
         
         # Cancel background tasks
@@ -170,7 +177,13 @@ class QueenOrchestrator:
         await self.llm.shutdown()
         await self.bee_manager.shutdown()
         await self.blockchain.shutdown()
-        
+        # Close Elastic connection if initialized
+        try:
+            if hasattr(self, "elastic") and self.elastic:
+                await self.elastic.close()
+        except Exception as e:
+            logger.warning(f"Elastic close failed: {e}")
+
         logger.info("✅ Queen AI shutdown complete")
     
     # ============ BEE MANAGEMENT ============

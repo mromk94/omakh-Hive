@@ -2639,6 +2639,24 @@ Verification:
 - Chat "Buy OMK" respects `otc_phase` and renders OTC vs Swap accordingly
 - Chat "Browse properties" shows `PropertyCard` with data from backend (fallback to defaults)
 
+## Log Entry: 2025-10-22 (later)
+Prime Task: Data pipeline & search integrations
+Status: Completed (incremental steps)
+Developer: Cascade
+
+Actions:
+- Wired Elasticsearch into `QueenOrchestrator` guarded by env (`ELASTIC_ENDPOINT`/`ELASTIC_CLOUD_ID`, `ELASTIC_API_KEY`)
+- Enabled Elastic usage across all bees via `BeeManager` when env is present
+- Hardened CSV writer in `DataPipelineBee` for Fivetran compatibility (delimiter, quotechar, quoting, escapechar, lineterminator) across blockchain/dex/oracle files
+
+Files changed:
+- `backend/queen-ai/app/core/orchestrator.py`
+- `backend/queen-ai/app/bees/data_pipeline_bee.py`
+
+Next:
+- Deploy backend with `ELASTIC_ENDPOINT` and `ELASTIC_API_KEY` set at deploy time (not committed)
+- In Fivetran GCS connector: Folder Path `blockchain_data/`, File Pattern `^.*_(blockchain|dex|oracle)\.csv$`, File Type CSV; exclude `metadata/`
+
 # END OF LOGS.MD
 
 **Note**: This document will be continuously updated as development progresses. All team members should log their work regularly to maintain accurate project tracking.
