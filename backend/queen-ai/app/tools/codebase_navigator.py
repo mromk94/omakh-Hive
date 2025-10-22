@@ -37,7 +37,8 @@ class CodebaseNavigator:
         else:
             self.project_root = Path(project_root)
         
-        self.index_file = self.project_root / ".queen_system" / "codebase_index.json"
+        base_dir = Path(os.getenv("QUEEN_SYSTEM_DIR", "/tmp/.queen_system"))
+        self.index_file = base_dir / "codebase_index.json"
         self.index_file.parent.mkdir(parents=True, exist_ok=True)
         
         self.index: Dict[str, Any] = {
