@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, TrendingUp, Calculator } from 'lucide-react';
 import InteractiveCard from './InteractiveCard';
 import { formatCurrency } from '@/lib/utils';
+import { API_ENDPOINTS } from '@/lib/constants';
 
 interface Property {
   id: string;
@@ -28,8 +29,9 @@ interface PropertyCardProps {
 export default function PropertyCard({ theme = 'dark', properties, onInvest }: PropertyCardProps) {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [blocks, setBlocks] = useState(1);
+  const [fetchedProperties, setFetchedProperties] = useState<Property[] | null>(null);
 
-  const defaultProperties: Property[] = properties || [
+  const defaultProperties: Property[] = [
     {
       id: '1',
       name: 'Luxury Apartment Complex',
@@ -68,6 +70,20 @@ export default function PropertyCard({ theme = 'dark', properties, onInvest }: P
     },
   ];
 
+  useEffect(() => {
+    if (!properties) {
+      (async () => {
+        try {
+          const res = await fetch(`${API_ENDPOINTS.FRONTEND}/properties`);
+          const data = await res.json();
+          if (data?.success && Array.isArray(data.properties) && data.properties.length > 0) {
+            setFetchedProperties(data.properties);
+          }
+        } catch {}
+      })();
+    }
+  }, [properties]);
+
   const monthlyReturn = selectedProperty ? (blocks * selectedProperty.blockPrice * selectedProperty.apy) / 100 / 12 : 0;
   const yearlyReturn = selectedProperty ? (blocks * selectedProperty.blockPrice * selectedProperty.apy) / 100 : 0;
 
@@ -77,7 +93,7 @@ export default function PropertyCard({ theme = 'dark', properties, onInvest }: P
         {!selectedProperty ? (
           // Property List
           <div className="space-y-3">
-            {defaultProperties.map((property, i) => (
+            {(properties || fetchedProperties || defaultProperties).map((property, i) => (
               <motion.button
                 key={property.id}
                 initial={{ opacity: 0, y: 20 }}

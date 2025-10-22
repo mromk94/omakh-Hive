@@ -590,6 +590,44 @@ async def get_wallet_balance(data: SessionRequest, request: Request):
     return result
 
 
+# ============ PUBLIC CONFIG ============
+
+@router.get("/config")
+async def get_public_config():
+    """Public, read-only subset of system configuration for frontend use"""
+    config = db.get_system_config()
+    return {
+        "success": True,
+        "config": {
+            "otc_phase": config.get("otc_phase"),
+            "otc_enabled": config.get("otc_enabled"),
+            "tge_date": config.get("tge_date"),
+            "omk_price_usd": config.get("omk_price_usd"),
+            "payment_methods_enabled": config.get("payment_methods_enabled"),
+            "treasury_wallets": config.get("treasury_wallets"),
+        },
+    }
+
+
+# ============ PROPERTIES (PUBLIC) ============
+
+@router.get("/properties")
+async def list_properties():
+    file_path = db.DATA_DIR / "properties.json"
+    properties = db.load_json(file_path, [])
+    return {"success": True, "properties": properties, "total": len(properties)}
+
+
+@router.get("/properties/{property_id}")
+async def get_property(property_id: str):
+    file_path = db.DATA_DIR / "properties.json"
+    properties = db.load_json(file_path, [])
+    prop = next((p for p in properties if str(p.get("id")) == str(property_id)), None)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    return {"success": True, "property": prop}
+
+
 # ============ HEALTH CHECK ============
 
 @router.get("/health")

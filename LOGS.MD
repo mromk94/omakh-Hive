@@ -2611,6 +2611,34 @@ Notes: Awaiting approval of roadmap and team assignment
 
 ---
 
+## Log Entry: 2025-10-22
+Prime Task: Integrate and Optimize Hive (Frontend ↔ Backend chat)
+Status: Completed (incremental steps)
+Developer: Cascade
+
+Actions:
+- Added public endpoint `GET /api/v1/frontend/config` returning safe config subset
+- Switched chat to use public config in `omk-frontend/app/chat/page.tsx`
+- Updated `omk-frontend/components/cards/OTCPurchaseCard.tsx` to use public config
+- Added properties endpoints: `GET /api/v1/frontend/properties`, `GET /api/v1/frontend/properties/{property_id}`
+- Seeded `backend/queen-ai/data/properties.json` with 3 sample properties
+- Wired chat action `show_properties` to render property list via `{ type: 'property_list' }`
+- Rendered `PropertyCard` in chat and enabled fetching from backend when available
+- Made `SwapCard` read dynamic price `omk_price_usd` from public config
+
+Files changed:
+- `backend/queen-ai/app/api/v1/frontend.py`
+- `backend/queen-ai/data/properties.json`
+- `omk-frontend/app/chat/page.tsx`
+- `omk-frontend/components/cards/OTCPurchaseCard.tsx`
+- `omk-frontend/components/cards/SwapCard.tsx`
+- `omk-frontend/components/cards/PropertyCard.tsx`
+
+Verification:
+- `GET /api/v1/frontend/config` and `GET /api/v1/frontend/properties` return data locally
+- Chat "Buy OMK" respects `otc_phase` and renders OTC vs Swap accordingly
+- Chat "Browse properties" shows `PropertyCard` with data from backend (fallback to defaults)
+
 # END OF LOGS.MD
 
 **Note**: This document will be continuously updated as development progresses. All team members should log their work regularly to maintain accurate project tracking.

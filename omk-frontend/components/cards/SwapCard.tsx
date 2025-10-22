@@ -8,6 +8,7 @@ import { parseEther, formatEther } from 'viem';
 import InteractiveCard from './InteractiveCard';
 import { formatNumber, formatCurrency } from '@/lib/utils';
 import { SUPPORTED_TOKENS } from '@/lib/contracts/dispenser';
+import { API_ENDPOINTS } from '@/lib/constants';
 
 interface SwapCardProps {
   theme?: 'light' | 'dark';
@@ -24,6 +25,7 @@ export default function SwapCard({ theme = 'dark', onSwap, demoMode = true }: Sw
   const [showDestination, setShowDestination] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapSuccess, setSwapSuccess] = useState(false);
+  const [omkPrice, setOmkPrice] = useState(0.10);
 
   const currentToken = SUPPORTED_TOKENS[selectedToken];
 
@@ -46,7 +48,19 @@ export default function SwapCard({ theme = 'dark', onSwap, demoMode = true }: Sw
     USDC: 1
   };
 
-  const omkPrice = 0.10;
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await fetch(`${API_ENDPOINTS.FRONTEND}/config`);
+        const data = await res.json();
+        const price = data?.config?.omk_price_usd;
+        if (typeof price === 'number' && price > 0) {
+          setOmkPrice(price);
+        }
+      } catch {}
+    };
+    loadConfig();
+  }, []);
 
   // Calculate output amount
   useEffect(() => {

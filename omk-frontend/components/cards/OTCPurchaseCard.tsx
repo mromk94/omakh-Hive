@@ -60,7 +60,7 @@ export default function OTCPurchaseCard({ onClose, onSubmit }: OTCPurchaseCardPr
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.ADMIN}/config`);
+        const response = await fetch(`${API_ENDPOINTS.FRONTEND}/config`);
         const data = await response.json();
         if (data.success && data.config) {
           const config = data.config;

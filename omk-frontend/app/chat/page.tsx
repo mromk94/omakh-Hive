@@ -466,7 +466,7 @@ export default function ChatInterface() {
       // Check OTC configuration to determine flow
       setLoading(true);
       try {
-        const response = await fetch(`${API_ENDPOINTS.ADMIN}/config`);
+        const response = await fetch(`${API_ENDPOINTS.FRONTEND}/config`);
         const data = await response.json();
         const otcPhase = data?.config?.otc_phase || 'private_sale';
         
@@ -498,11 +498,8 @@ export default function ChatInterface() {
       }
     } else if (option.action === 'show_properties') {
       addMessage('user', option.label);
-      // 🚧 COMING SOON: Property browsing needs backend API (FPRIME-2)
-      addMessage('ai', '🏠 **Property Investment Coming Soon!**\n\nWe\'re preparing our luxury real estate portfolio for you! Properties will be available shortly after our Token Generation Event (TGE).\n\nIn the meantime, you can:', [
-        { label: '💎 Get OMK Tokens (Pre-sale)', action: 'show_swap' },
-        { label: '📚 Learn about investing', action: 'show_roi_calculator' },
-        { label: '🔗 Connect your wallet', action: 'connect_wallet' }
+      addMessage('ai', 'Excellent! Here are our available properties 🏢', [
+        { type: 'property_list' }
       ]);
     } else if (option.action === 'ask_teacher_bee') {
       addMessage('user', option.label);
@@ -1788,19 +1785,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
                   {/* 🚧 COMING SOON: Property list - Hidden until backend ready (FPRIME-2) */}
                   {msg.options && msg.options[0]?.type === 'property_list' && (
                     <div className="mt-4">
-                      <div className="bg-gradient-to-br from-amber-900/20 to-yellow-900/20 rounded-2xl p-8 border border-amber-500/30 text-center">
-                        <div className="text-6xl mb-4">🏗️</div>
-                        <h3 className="text-2xl font-bold mb-3 text-amber-400">Property Investments Coming Soon!</h3>
-                        <p className="text-gray-300 mb-6">We're curating our luxury real estate portfolio. Properties will be available shortly after TGE!</p>
-                        <div className="flex flex-col gap-3 max-w-sm mx-auto">
-                          <button onClick={() => handleOptionClick({ label: '💎 Get OMK Tokens', action: 'show_swap' })} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold rounded-xl hover:scale-105 transition-transform">
-                            💎 Get OMK Tokens Now
-                          </button>
-                          <button onClick={() => handleOptionClick({ label: '📊 Calculate Returns', action: 'show_roi_calculator' })} className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-colors">
-                            📊 Calculate Potential Returns
-                          </button>
-                        </div>
-                      </div>
+                      <PropertyCard theme={theme as 'light' | 'dark'} />
                     </div>
                   )}
 

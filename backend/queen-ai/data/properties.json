@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1",
+    "name": "Luxury Apartment Complex",
+    "location": "Dubai Marina",
+    "country": "UAE",
+    "image": "🏙️",
+    "blockPrice": 100,
+    "totalBlocks": 1000,
+    "availableBlocks": 450,
+    "apy": 12,
+    "type": "residential"
+  },
+  {
+    "id": "2",
+    "name": "Beach Resort Villa",
+    "location": "Bali",
+    "country": "Indonesia",
+    "image": "🏖️",
+    "blockPrice": 75,
+    "totalBlocks": 1000,
+    "availableBlocks": 580,
+    "apy": 14,
+    "type": "residential"
+  },
+  {
+    "id": "3",
+    "name": "Commercial Office",
+    "location": "Lagos",
+    "country": "Nigeria",
+    "image": "🏢",
+    "blockPrice": 150,
+    "totalBlocks": 1000,
+    "availableBlocks": 320,
+    "apy": 10.5,
+    "type": "commercial"
+  }
+]
