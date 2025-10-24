@@ -34,7 +34,7 @@
     "@nestjs/config": "^3.0.0",
     "@nestjs/jwt": "^10.0.0",
     "@nestjs/passport": "^10.0.0",
-    "@nestjs/swagger": "^7.0.0",
+    "@nestjs/swagger": "^11.2.1",
     "@nestjs/throttler": "^5.0.0",
     "@apollo/server": "^4.9.0",
     "apollo-server-express": "^3.12.0",
