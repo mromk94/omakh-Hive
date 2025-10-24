@@ -52,7 +52,7 @@
     "@solana/web3.js": "^1.87.0",
     "axios": "^1.6.0",
     "rxjs": "^7.8.1",
-    "reflect-metadata": "^0.1.13"
+    "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
