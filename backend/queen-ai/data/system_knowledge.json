@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2025-10-11T18:41:59.720144",
+  "last_updated": "2025-10-24T16:30:04.372792",
   "project_name": "OMK Hive",
   "structure": {
     "frontend": {
@@ -28,6 +28,14 @@
         "integrations": "backend/queen-ai/app/integrations",
         "learning": "backend/queen-ai/app/learning"
       }
+    },
+    "new_frontend": {
+      "directory": "new-frontend",
+      "framework": "Next.js 16",
+      "port": 3000,
+      "package_manager": "npm",
+      "shared_constants": "shared/config/constants.ts",
+      "dev_proxy": "/kingdom -> http://localhost:3001/kingdom"
     }
   },
   "theme": {
@@ -54,7 +62,8 @@
       "admin": "/api/v1/admin",
       "admin_claude": "/api/v1/admin/claude",
       "teacher_bee": "/api/v1/teacher-bee",
-      "frontend": "/api/v1/frontend"
+      "frontend": "/api/v1/frontend",
+      "market_omk": "/api/v1/market/omk"
     }
   },
   "patterns": {
@@ -166,5 +175,22 @@
     "last_reviewed": "2025-10-11T18:41:59.720100",
     "review_count": 0,
     "implementation_count": 0
+  },
+  "start_methods": {
+    "scripts": {
+      "start": "./start-omakh.sh",
+      "stop": "./stop-omakh.sh",
+      "reboot": "./reboot-omakh.sh"
+    },
+    "manual": {
+      "backend": "uvicorn main:app --host 0.0.0.0 --port 8001 --reload",
+      "new_frontend": "npm run dev (port 3000)",
+      "admin_frontend": "npm run dev -- -p 3001"
+    },
+    "logs": {
+      "backend": "logs/queen-backend.log",
+      "new_frontend": "logs/new-frontend.log",
+      "admin_frontend": "logs/frontend.log"
+    }
   }
 }

@@ -7,6 +7,7 @@ import {
   CheckCircle, Clock, Users, BarChart3, Search, RefreshCw, Wifi, WifiOff
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 import { useHiveWebSocket } from '@/app/hooks/useWebSocket';
 
 const BACKEND_URL = 'http://localhost:8001';
@@ -54,11 +55,11 @@ export default function HiveIntelligence() {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [overviewRes, messageRes, boardRes, perfRes, activityRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/v1/admin/hive/overview`, { headers }),
-        fetch(`${BACKEND_URL}/api/v1/admin/hive/message-bus/stats`, { headers }),
-        fetch(`${BACKEND_URL}/api/v1/admin/hive/board/stats`, { headers }),
-        fetch(`${BACKEND_URL}/api/v1/admin/hive/bees/performance`, { headers }),
-        fetch(`${BACKEND_URL}/api/v1/admin/hive/activity/live`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/hive/overview`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/hive/message-bus/stats`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/hive/board/stats`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/hive/bees/performance`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/hive/activity/live`, { headers }),
       ]);
 
       const [overviewData, messageData, boardData, perfData, activityData] = await Promise.all([

@@ -19,6 +19,7 @@ import structlog
 from datetime import datetime, timedelta
 from pathlib import Path
 from app.bees.base import BaseBee
+from app.config.settings import settings
 
 try:
     from google.cloud import storage
@@ -131,6 +132,16 @@ class DataPipelineBee(BaseBee):
             
             if not upload_result.get("success"):
                 raise Exception(f"GCS upload failed: {upload_result.get('error')}")
+
+            # Step 4: Optional BigQuery load
+            bq_loaded = None
+            try:
+                bq_loaded = await self._load_to_bigquery({
+                    "uploaded_files": upload_result.get("uploaded_files", [])
+                })
+                results["steps"]["bigquery_load"] = bq_loaded
+            except Exception as e:
+                logger.warning(f"BigQuery load step skipped or failed: {e}")
             
             # Pipeline complete
             pipeline_end = datetime.utcnow()
@@ -146,6 +157,7 @@ class DataPipelineBee(BaseBee):
                 "total_records": collect_result.get("total_records", 0),
                 "csv_files_uploaded": len(csv_files),
                 "gcs_bucket": self.gcs_bucket,
+                "bigquery_loaded": bool(bq_loaded and bq_loaded.get("success")),
                 "message": f"Pipeline completed successfully in {duration:.1f}s"
             })
             
@@ -194,18 +206,97 @@ class DataPipelineBee(BaseBee):
             }
             
             # Blockchain transactions
-            eth_txs = await blockchain_connector.extract_ethereum_transactions(limit=10)
-            sol_txs = await blockchain_connector.extract_solana_transactions(limit=10)
+            eth_raw = await blockchain_connector.collect_ethereum_transactions()
+            sol_raw = await blockchain_connector.collect_solana_transactions(limit=10)
+
+            eth_txs = [
+                {
+                    "table": "ethereum_tx",
+                    "data": {
+                        "transaction_hash": tx.get("transaction_hash", ""),
+                        "block_number": tx.get("block_number", 0),
+                        "from_address": tx.get("from_address", ""),
+                        "to_address": tx.get("to_address", ""),
+                        "value": tx.get("value_eth", 0),
+                        "gas_price": tx.get("gas_price_gwei", 0),
+                        "status": "confirmed",
+                    },
+                }
+                for tx in (eth_raw or [])
+            ]
+
+            sol_txs = []
+            for tx in (sol_raw or []):
+                sol_txs.append(
+                    {
+                        "table": "solana_tx",
+                        "data": {
+                            "transaction_hash": tx.get("signature", ""),
+                            "block_number": tx.get("slot", 0),
+                            "from_address": "",
+                            "to_address": "",
+                            "value": 0,
+                            "gas_price": 0,
+                            "status": "ok" if not tx.get("err") else "error",
+                        },
+                    }
+                )
+
             all_data["blockchain"].extend(eth_txs + sol_txs)
             
             # DEX pools
-            uniswap_pools = await dex_connector.extract_uniswap_pools(limit=5)
-            all_data["dex"].extend(uniswap_pools)
+            uniswap_pools = await dex_connector.collect_uniswap_pools()
+            uniswap_wrapped = [
+                {
+                    "table": "uniswap_pool",
+                    "data": {
+                        "pool_address": p.get("pool_address", ""),
+                        "dex": "uniswap",
+                        "token_a": p.get("token0_symbol", ""),
+                        "token_b": p.get("token1_symbol", ""),
+                        "liquidity_usd": p.get("total_liquidity_usd", 0),
+                        "volume_24h": p.get("volume_24h_usd", 0),
+                        "reserve_a": 0,
+                        "reserve_b": 0,
+                    },
+                }
+                for p in (uniswap_pools or [])
+            ]
+            all_data["dex"].extend(uniswap_wrapped)
             
             # Price oracles
-            chainlink_prices = await oracle_connector.extract_chainlink_prices(limit=5)
-            pyth_prices = await oracle_connector.extract_pyth_prices(limit=5)
-            all_data["oracle"].extend(chainlink_prices + pyth_prices)
+            chainlink_prices = await oracle_connector.collect_chainlink_prices()
+            pyth_prices = await oracle_connector.collect_pyth_prices()
+
+            chainlink_wrapped = [
+                {
+                    "table": "chainlink_price",
+                    "data": {
+                        "oracle": "chainlink",
+                        "pair": c.get("pair", ""),
+                        "price": c.get("price", 0),
+                        "confidence": c.get("confidence", 0),
+                        "feed_address": c.get("feed_address", ""),
+                    },
+                }
+                for c in (chainlink_prices or [])
+            ]
+
+            pyth_wrapped = [
+                {
+                    "table": "pyth_price",
+                    "data": {
+                        "oracle": "pyth",
+                        "pair": p.get("pair", ""),
+                        "price": p.get("price", 0),
+                        "confidence": p.get("confidence", 0),
+                        "feed_address": p.get("feed_address", ""),
+                    },
+                }
+                for p in (pyth_prices or [])
+            ]
+
+            all_data["oracle"].extend(chainlink_wrapped + pyth_wrapped)
             
             # Save to JSON file
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -261,7 +352,7 @@ class DataPipelineBee(BaseBee):
                     )
                     writer.writerow([
                         'timestamp', 'table', 'transaction_hash', 'block_number',
-                        'from_address', 'to_address', 'value', 'gas_price', 'status'
+                        'from_address', 'to_address', 'value', 'gas_price_gwei', 'status'
                     ])
                     
                     for record in json_data['blockchain']:
@@ -273,8 +364,8 @@ class DataPipelineBee(BaseBee):
                             rec_data.get('block_number', ''),
                             rec_data.get('from_address', ''),
                             rec_data.get('to_address', ''),
-                            rec_data.get('value', 0),
-                            rec_data.get('gas_price', 0),
+                            rec_data.get('value_eth', rec_data.get('value', 0)),
+                            rec_data.get('gas_price_gwei', rec_data.get('gas_price', 0)),
                             rec_data.get('status', 'pending')
                         ])
                 
@@ -356,6 +447,61 @@ class DataPipelineBee(BaseBee):
             
         except Exception as e:
             logger.error(f"CSV conversion failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _load_to_bigquery(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Load uploaded CSVs from GCS into BigQuery tables (optional)."""
+        try:
+            try:
+                from google.cloud import bigquery
+            except Exception:
+                return {"success": False, "error": "google-cloud-bigquery not installed"}
+
+            project_id = getattr(settings, 'GCP_PROJECT_ID', None)
+            dataset_id = getattr(settings, 'PIPELINE_BIGQUERY_DATASET', 'fivetran_blockchain_data')
+            if not project_id:
+                return {"success": False, "error": "GCP_PROJECT_ID not set"}
+
+            client = bigquery.Client(project=project_id)
+            dataset_ref = bigquery.DatasetReference(project=project_id, dataset_id=dataset_id)
+            try:
+                client.get_dataset(dataset_ref)
+            except Exception:
+                dataset = bigquery.Dataset(dataset_ref)
+                dataset.location = getattr(settings, 'GCP_LOCATION', 'us-central1')
+                client.create_dataset(dataset)
+
+            uploaded = data.get("uploaded_files", [])
+            loaded_tables: List[str] = []
+            for item in uploaded:
+                gcs_uri = item.get("gcs_path")
+                if not gcs_uri:
+                    continue
+                table_name = None
+                if gcs_uri.endswith("_blockchain.csv"):
+                    table_name = "ethereum_transactions"
+                elif gcs_uri.endswith("_dex.csv"):
+                    table_name = "dex_pools"
+                elif gcs_uri.endswith("_oracle.csv"):
+                    table_name = "oracle_prices"
+                else:
+                    continue
+
+                table_ref = dataset_ref.table(table_name)
+                job_config = bigquery.LoadJobConfig(
+                    autodetect=True,
+                    source_format=bigquery.SourceFormat.CSV,
+                    skip_leading_rows=1,
+                    write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+                )
+                load_job = client.load_table_from_uri(gcs_uri, table_ref, job_config=job_config)
+                load_job.result()
+                loaded_tables.append(table_name)
+
+            return {"success": True, "loaded_tables": loaded_tables}
+
+        except Exception as e:
+            logger.error(f"BigQuery load failed: {e}")
             return {"success": False, "error": str(e)}
     
     async def _upload_to_gcs(self, data: Dict[str, Any]) -> Dict[str, Any]:

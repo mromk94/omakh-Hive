@@ -23,6 +23,7 @@ import WalletEducationCard from '@/components/cards/WalletEducationCard';
 import OnboardingFlowCard from '@/components/cards/OnboardingFlowCard';
 import VisualWalletGuideCard from '@/components/cards/VisualWalletGuideCard';
 import WalletFundingGuideCard from '@/components/cards/WalletFundingGuideCard';
+import PrivateSaleCard from '@/components/cards/PrivateSaleCard';
 
 export default function ChatInterface() {
   const router = useRouter();
@@ -167,8 +168,9 @@ export default function ChatInterface() {
   }, []); // Empty dependency array - only run once
 
   const addMessage = (sender: 'user' | 'ai', content: string, options?: any[]) => {
+    const newId = Date.now();
     const newMessage = {
-      id: Date.now(),
+      id: newId,
       sender,
       content,
       options,
@@ -176,25 +178,37 @@ export default function ChatInterface() {
     };
     
     setMessages(prev => [...prev, newMessage]);
+    // Focus the top of the newly added message to avoid cropping long bubbles
+    setTimeout(() => {
+      scrollToMessageTop(newId);
+    }, 100);
   };
 
   const scrollToBottom = (instant = false) => {
-    // The container has min-h-screen, so WINDOW scrolls, not the div
+    const container = chatContainerRef.current;
+    if (!container) return;
     setTimeout(() => {
-      if (messagesEndRef.current) {
-        // Scroll window to show the spacer element
-        window.scrollTo({
-          top: messagesEndRef.current.offsetTop - 200, // Offset for input field
-          behavior: instant ? 'auto' : 'smooth'
-        });
-      }
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: instant ? 'auto' : 'smooth'
+      });
     }, 100);
+  };
+
+  const scrollToMessageTop = (messageId: number) => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const el = container.querySelector(`[data-message-id="${messageId}"]`) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   // Auto-scroll to bottom whenever messages change
   useEffect(() => {
     if (messages.length > 0) {
-      scrollToBottom(false);
+      const lastId = messages[messages.length - 1].id;
+      scrollToMessageTop(lastId);
     }
   }, [messages.length]);
 
@@ -473,12 +487,9 @@ export default function ChatInterface() {
         setLoading(false);
         
         if (otcPhase === 'private_sale') {
-          // Show OTC purchase flow (requires manual approval)
-          const tgeDate = data?.config?.tge_date || '2025-12-31T00:00:00Z';
-          const tgeDateFormatted = new Date(tgeDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-          
-          addMessage('ai', `💎 Great! Since OMK is currently in **Private Sale** phase, you\'ll need to submit an OTC request.\n\n📋 Your crypto payment will be verified automatically. Tokens will be distributed to your wallet at **TGE (${tgeDateFormatted})**!`, [
-            { type: 'otc_purchase' }
+          // Show on-chain Private Sale card
+          addMessage('ai', 'Welcome to the OMK Private Sale! 🎯', [
+            { type: 'private_sale' }
           ]);
         } else if (otcPhase === 'standard') {
           // Show instant swap (post-TGE)
@@ -1604,10 +1615,10 @@ Everything you need to know about investing, earning, and withdrawing.`,
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.4, type: "spring" }}
-              className={`flex mb-6 ${msg.sender === 'ai' ? 'justify-start' : 'justify-end'}`}
+              className={`flex mb-4 sm:mb-6 ${msg.sender === 'ai' ? 'justify-start' : 'justify-end'}`}
             >
               {msg.sender === 'ai' ? (
-                <div className={`max-w-[90%] shadow-2xl rounded-3xl rounded-tl-sm p-6 ${
+                <div className={`max-w-[85%] md:max-w-[75%] shadow-2xl rounded-3xl rounded-tl-sm p-4 sm:p-6 ${
                   theme === 'dark' 
                     ? 'bg-black/95 backdrop-blur-xl text-stone-100 border border-yellow-900/30' 
                     : 'bg-stone-50/90 backdrop-blur-xl border border-yellow-600/30'
@@ -1620,7 +1631,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
                   </div>
                   
                   {msg.content && (
-                    <div className="text-lg leading-relaxed whitespace-pre-wrap mb-2">
+                    <div className="text-base sm:text-lg leading-relaxed whitespace-pre-wrap mb-2">
                       {msg.content}
                     </div>
                   )}
@@ -1845,49 +1856,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
 
                   {msg.options && msg.options[0]?.type === 'private_sale' && (
                     <div className="mt-4">
-                      <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-2xl p-6 border border-purple-500/30">
-                        <h3 className="text-2xl font-bold mb-4 text-center">🎯 Private Sale</h3>
-                        <div className="space-y-4">
-                          <div className="bg-black/30 rounded-xl p-4">
-                            <p className="text-sm text-gray-400 mb-2">Current Tier</p>
-                            <p className="text-3xl font-bold text-yellow-400">Tier 1</p>
-                            <p className="text-lg text-gray-300">$0.100 per OMK</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-black/30 rounded-xl p-4">
-                              <p className="text-sm text-gray-400">Min Investment</p>
-                              <p className="text-xl font-bold">$500</p>
-                            </div>
-                            <div className="bg-black/30 rounded-xl p-4">
-                              <p className="text-sm text-gray-400">Bonus</p>
-                              <p className="text-xl font-bold text-green-400">+15%</p>
-                            </div>
-                          </div>
-                          <div className="bg-black/30 rounded-xl p-4">
-                            <p className="text-sm text-gray-400 mb-3">Why Join?</p>
-                            <ul className="space-y-2 text-sm">
-                              <li>✅ Lowest price per token</li>
-                              <li>✅ 15% bonus tokens</li>
-                              <li>✅ Early access to platform</li>
-                              <li>✅ Priority support</li>
-                            </ul>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              addMessage('user', 'I want to join the private sale');
-                              addMessage('ai', 'Excellent choice! 🎉\n\nTo participate:\n1️⃣ Minimum $500 investment\n2️⃣ KYC verification required\n3️⃣ 15% bonus tokens\n4️⃣ Vesting: 20% TGE, rest over 6 months\n\nReady to proceed?', [
-                                { label: '✅ Start KYC process', action: 'start_kyc' },
-                                { label: '📖 View token tiers', action: 'show_tiers' },
-                                { label: '💰 Calculate my allocation', action: 'show_roi_calculator' },
-                                { label: '❌ Maybe later', action: 'show_dashboard' }
-                              ]);
-                            }}
-                            className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold py-3 rounded-xl hover:scale-105 transition-transform"
-                          >
-                            Join Private Sale 🚀
-                          </button>
-                        </div>
-                      </div>
+                      <PrivateSaleCard />
                     </div>
                   )}
                   
@@ -1912,8 +1881,8 @@ Everything you need to know about investing, earning, and withdrawing.`,
                   )}
                 </div>
               ) : (
-                <div className="max-w-[90%] bg-gradient-to-r from-yellow-500 via-yellow-600 to-yellow-700 text-black shadow-2xl rounded-3xl rounded-tr-sm px-6 py-4">
-                  <div className="text-lg leading-relaxed font-semibold">{msg.content}</div>
+                <div className="max-w-[85%] md:max-w-[75%] bg-gradient-to-r from-yellow-500 via-yellow-600 to-yellow-700 text-black shadow-2xl rounded-3xl rounded-tr-sm px-5 py-3 sm:px-6 sm:py-4">
+                  <div className="text-base sm:text-lg leading-relaxed font-semibold">{msg.content}</div>
                 </div>
               )}
             </motion.div>
@@ -1946,7 +1915,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
         )}
         
         {/* Large spacer to ensure last message is fully visible above input */}
-        <div ref={messagesEndRef} className="h-48" />
+        <div ref={messagesEndRef} className="h-24 sm:h-48" />
       </div>
 
       {/* Scroll Down Indicator */}
@@ -1957,7 +1926,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             onClick={() => scrollToBottom()}
-            className={`fixed bottom-32 left-1/2 -translate-x-1/2 z-40 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-semibold ${
+            className={`fixed bottom-28 sm:bottom-32 left-1/2 -translate-x-1/2 z-40 px-4 py-3 text-base sm:px-8 sm:py-4 sm:text-lg rounded-full shadow-2xl flex items-center gap-2 font-semibold ${
               theme === 'dark' 
                 ? 'bg-yellow-600 text-black hover:bg-yellow-500' 
                 : 'bg-yellow-500 text-white hover:bg-yellow-600'
@@ -2000,7 +1969,7 @@ Everything you need to know about investing, earning, and withdrawing.`,
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
             disabled={loading || !input.trim()}
-            className="px-8 py-5 bg-gradient-to-r from-yellow-500 via-yellow-600 to-yellow-700 text-black rounded-full shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-bold text-lg hover:from-yellow-400 hover:via-yellow-500 hover:to-yellow-600"
+            className="px-4 py-3 text-base sm:px-8 sm:py-5 sm:text-lg bg-gradient-to-r from-yellow-500 via-yellow-600 to-yellow-700 text-black rounded-full shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-bold hover:from-yellow-400 hover:via-yellow-500 hover:to-yellow-600"
           >
             <Send className="w-6 h-6" />
           </motion.button>

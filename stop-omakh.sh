@@ -78,6 +78,13 @@ else
 fi
 
 # Kill any orphaned processes on ports
+PORT_3000_PID=$(lsof -ti:3000 || true)
+if [ ! -z "$PORT_3000_PID" ]; then
+    echo -e "${BLUE}🔌  Freeing port 3000...${NC}"
+    kill -9 $PORT_3000_PID 2>/dev/null || true
+    echo -e "${GREEN}✅  Port 3000 freed${NC}"
+fi
+
 PORT_3001_PID=$(lsof -ti:3001 || true)
 if [ ! -z "$PORT_3001_PID" ]; then
     echo -e "${BLUE}🔌  Freeing port 3001...${NC}"

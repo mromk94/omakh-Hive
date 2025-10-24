@@ -605,6 +605,12 @@ async def get_public_config():
             "omk_price_usd": config.get("omk_price_usd"),
             "payment_methods_enabled": config.get("payment_methods_enabled"),
             "treasury_wallets": config.get("treasury_wallets"),
+            "staking": {
+                "apr": config.get("staking_apr"),
+                "lock_days": config.get("staking_lock_days"),
+                "terms": config.get("staking_terms"),
+            },
+            "social_links": config.get("social_links"),
         },
     }
 

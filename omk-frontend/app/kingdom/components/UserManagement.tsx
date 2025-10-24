@@ -7,6 +7,7 @@ import {
   CheckCircle, XCircle, Clock, MoreVertical, Download, AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -29,7 +30,7 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/admin/users`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -290,10 +291,21 @@ function UserDetailModal({ user, onClose, onUpdate }: any) {
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      await fetch(`${BACKEND_URL}/api/v1/admin/users/${user.id}/${actionType}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      if (!token) throw new Error('Missing auth token');
+
+      if (actionType === 'suspend') {
+        const reason = prompt('Reason for deactivation/suspension:') || 'admin_action';
+        await fetch(`${API_ENDPOINTS.ADMIN}/users/${user.id}/deactivate`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+      } else if (actionType === 'activate') {
+        await fetch(`${API_ENDPOINTS.ADMIN}/users/${user.id}/activate`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
       
       onUpdate();
       onClose();
@@ -369,20 +381,6 @@ function UserDetailModal({ user, onClose, onUpdate }: any) {
                 className="px-4 py-2 bg-green-600/20 text-green-400 hover:bg-green-600/30 rounded-lg transition-colors disabled:opacity-50"
               >
                 Activate User
-              </button>
-              <button
-                onClick={() => handleAction('reset-password')}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Reset Password
-              </button>
-              <button
-                onClick={() => handleAction('send-email')}
-                disabled={loading}
-                className="px-4 py-2 bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Send Email
               </button>
             </div>
           </div>

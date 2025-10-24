@@ -26,7 +26,7 @@ jobs:
       
       - name: Install dependencies
         working-directory: omk-frontend
-        run: npm ci
+        run: npm ci --omit=optional --legacy-peer-deps
       
       - name: Lint
         working-directory: omk-frontend
@@ -37,6 +37,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_QUEEN_API_URL: https://omk-queen-ai-475745165557.us-central1.run.app
+          NEXT_TELEMETRY_DISABLED: '1'
       
       - name: Upload coverage (optional)
         if: always()

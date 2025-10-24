@@ -76,24 +76,47 @@ OMK Hive is a revolutionary blockchain ecosystem that combines artificial intell
 # Clone repository
 git clone https://github.com/mromk94/omakh-Hive.git
 cd omakh-Hive
+```
 
-# Backend setup
+### Start (recommended)
+
+```bash
+# From repo root
+chmod +x start-omakh.sh stop-omakh.sh reboot-omakh.sh
+./reboot-omakh.sh   # or: ./start-omakh.sh
+```
+
+Behavior:
+- Backend: http://localhost:8001
+- New Frontend (site): http://localhost:3000  (Admin via /kingdom)
+- Admin (legacy): http://localhost:3001/kingdom
+- Logs: logs/queen-backend.log, logs/new-frontend.log, logs/frontend.log
+
+### Manual (alternative)
+
+```bash
+# Backend (terminal A)
 cd backend/queen-ai
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Configure your environment
-python3 main.py
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
-# Frontend setup (new terminal)
-cd omk-frontend
+# New Frontend (terminal B)
+cd new-frontend
 npm install
 npm run dev
+
+# Admin (terminal C)
+cd omk-frontend
+npm install
+npm run dev -- -p 3001
 ```
 
 Visit:
-- **Frontend**: http://localhost:3001
-- **Queen AI API**: http://localhost:8001
+- **Site**: http://localhost:3000 (Admin via /kingdom)
+- **Admin (direct)**: http://localhost:3001/kingdom
+- **Queen AI API**: http://localhost:8001/health
 - **Production API**: https://omk-queen-ai-475745165557.us-central1.run.app
 
 ## 📦 Project Structure

@@ -34,7 +34,7 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
     // Sale parameters
     uint256 public constant TOTAL_SALE_AMOUNT = 100_000_000 * 10**18; // 100M tokens
     uint256 public constant TIER_SIZE = 10_000_000 * 10**18; // 10M tokens per tier
-    uint256 public constant WHALE_LIMIT = 10_000_000 * 10**18; // 10M max per investor (updated per user request)
+    uint256 public constant WHALE_LIMIT = 20_000_000 * 10**18; // 20M max per investor
     uint256 public constant TOTAL_TIERS = 10;
     uint256 public constant MAX_RAISE_USD = 12_250_000 * 10**6; // $12.25M max raise (6 decimals)
     uint256 public constant MIN_PURCHASE = 2000 * 10**18; // 2000 OMK minimum purchase (updated per user request)
@@ -205,7 +205,7 @@ contract PrivateSale is AccessControl, Pausable, ReentrancyGuard {
         
         // Check whale limit
         uint256 newTotal = investments[msg.sender].totalPurchased + amount;
-        require(newTotal <= WHALE_LIMIT, "PrivateSale: Exceeds whale limit (10M)");
+        require(newTotal <= WHALE_LIMIT, "PrivateSale: Exceeds whale limit (20M)");
         
         // Check if enough tokens available
         require(totalSold + amount <= TOTAL_SALE_AMOUNT, "PrivateSale: Exceeds total sale amount");

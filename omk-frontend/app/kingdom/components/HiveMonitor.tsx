@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { API_ENDPOINTS } from '@/lib/constants';
+import { API_ENDPOINTS, WS_ENDPOINTS } from '@/lib/constants';
 import { Activity, CheckCircle2, AlertCircle, Clock, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -42,6 +42,45 @@ export default function HiveMonitor() {
     }, 15000); // Refresh every 15s when visible
     return () => clearInterval(interval);
   }, [isVisible]);
+
+  // Optional WebSocket live updates (dev + prod if backend supports it)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const token = localStorage.getItem('auth_token') || 'dev_token';
+      const url = `${WS_ENDPOINTS.ADMIN_BEES}?token=${encodeURIComponent(token)}`;
+      const ws = new WebSocket(url);
+      ws.onopen = () => {
+        // Connected, keep polling as backup
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          const raw = msg?.bees || msg?.data || [];
+          if (Array.isArray(raw)) {
+            const formatted = raw.map((bee: any, index: number) => ({
+              bee_id: bee.bee_id || index + 1,
+              name: bee.name || 'Unknown Bee',
+              role: bee.role || 'General Purpose',
+              status: bee.status || 'idle',
+              tasks_completed: bee.tasks_completed || 0,
+              tasks_pending: bee.tasks_pending || 0,
+              last_active: bee.last_active || 'Unknown',
+            }));
+            setBees(formatted);
+          }
+        } catch (e) {
+          // Ignore malformed messages
+        }
+      };
+      ws.onerror = () => {
+        // Fallback to polling only
+      };
+      return () => {
+        try { ws.close(); } catch {}
+      };
+    } catch {}
+  }, []);
 
   const loadBees = async () => {
     try {

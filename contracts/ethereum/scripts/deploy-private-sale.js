@@ -17,24 +17,37 @@ async function main() {
   // Configuration
   const QUEEN_MANAGER_ADDRESS = process.env.QUEEN_MANAGER_ADDRESS || deployer.address;
   const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || deployer.address;
+  const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS || deployer.address;
+  const FOUNDERS_ADDRESS = process.env.FOUNDERS_ADDRESS || ADMIN_ADDRESS;
+  const ADVISORS_ADDRESS = process.env.ADVISORS_ADDRESS || ADMIN_ADDRESS;
+  const QUEEN_ADDRESS = process.env.QUEEN_ADDRESS || QUEEN_MANAGER_ADDRESS;
+  const OMK_NAME = process.env.OMK_NAME || "OMK Token";
+  const OMK_SYMBOL = process.env.OMK_SYMBOL || "OMK";
   
   const deployments = {};
 
-  // 1. Deploy OMKToken (if not already deployed)
+  // 1. Deploy OMKToken with constructor args
   console.log("📝 Step 1: Deploying OMKToken...");
   const OMKToken = await hre.ethers.getContractFactory("OMKToken");
-  const omkToken = await OMKToken.deploy();
+  const omkToken = await OMKToken.deploy(
+    OMK_NAME,
+    OMK_SYMBOL,
+    ADMIN_ADDRESS,
+    TREASURY_ADDRESS,
+    QUEEN_ADDRESS,
+    FOUNDERS_ADDRESS,
+    ADVISORS_ADDRESS
+  );
   await omkToken.deployed();
-  console.log(`✅ OMKToken deployed to: ${omkToken.address}\n`);
+  console.log(`✅ OMKToken deployed to: ${omkToken.address}`);
+  console.log(`   - Admin:     ${ADMIN_ADDRESS}`);
+  console.log(`   - Treasury:  ${TREASURY_ADDRESS}`);
+  console.log(`   - Queen:     ${QUEEN_ADDRESS}`);
+  console.log(`   - Founders:  ${FOUNDERS_ADDRESS}`);
+  console.log(`   - Advisors:  ${ADVISORS_ADDRESS}\n`);
   deployments.omkToken = omkToken.address;
 
-  // 2. Deploy TokenVesting
-  console.log("📝 Step 2: Deploying TokenVesting...");
-  const TokenVesting = await hre.ethers.getContractFactory("TokenVesting");
-  const tokenVesting = await TokenVesting.deploy(omkToken.address, deployer.address);
-  await tokenVesting.deployed();
-  console.log(`✅ TokenVesting deployed to: ${tokenVesting.address}\n`);
-  deployments.tokenVesting = tokenVesting.address;
+  // 2. Skip standalone TokenVesting (OMKToken deploys vesting contracts internally)
 
   // 3. Deploy PrivateSale (with all security fixes)
   console.log("📝 Step 3: Deploying PrivateSale (with security fixes)...");
@@ -51,6 +64,12 @@ async function main() {
   console.log(`   - MAX_RAISE: $12.25M`);
   console.log(`   - Vesting fixes: Applied\n`);
   deployments.privateSale = privateSale.address;
+
+  // 3b. Link PrivateSale with OMKToken (transfers 100M automatically)
+  console.log("🔗 Linking PrivateSale with OMKToken (transferring 100M)...");
+  const linkTx = await omkToken.connect(deployer).setPrivateSaleContract(privateSale.address);
+  await linkTx.wait();
+  console.log("✅ PrivateSale linked and funded with 100M OMK\n");
 
   // 4. Deploy PrivateInvestorRegistry
   console.log("📝 Step 4: Deploying PrivateInvestorRegistry...");
@@ -78,22 +97,8 @@ async function main() {
   console.log(`   - Max price change: 20%\n`);
   deployments.omkDispenser = omkDispenser.address;
 
-  // 6. Setup - Transfer tokens to contracts
-  console.log("📝 Step 6: Transferring tokens to contracts...");
-  
-  // Transfer 100M to PrivateSale
-  console.log("Transferring 100M OMK to PrivateSale...");
-  await omkToken.transfer(privateSale.address, hre.ethers.utils.parseEther("100000000"));
-  
-  // Transfer 100M to InvestorRegistry
-  console.log("Transferring 100M OMK to InvestorRegistry...");
-  await omkToken.transfer(investorRegistry.address, hre.ethers.utils.parseEther("100000000"));
-  
-  // Transfer 10M to OMKDispenser
-  console.log("Transferring 10M OMK to OMKDispenser...");
-  await omkToken.transfer(omkDispenser.address, hre.ethers.utils.parseEther("10000000"));
-  
-  console.log("✅ Token transfers complete\n");
+  // 6. Setup - Skipping manual token transfers (handled by OMKToken + post-deploy ops)
+  console.log("📝 Step 6: Skipping manual token transfers (handled by OMKToken + post-deploy ops)\n");
 
   // 7. Verify Security Fixes
   console.log("📝 Step 7: Verifying Security Fixes...\n");
@@ -106,10 +111,6 @@ async function main() {
   console.log("🔒 OMKDispenser Security:");
   console.log(`   ✅ PRICE_UPDATE_DELAY: ${(await omkDispenser.PRICE_UPDATE_DELAY()) / 60} minutes`);
   console.log(`   ✅ MAX_PRICE_CHANGE_PERCENT: ${await omkDispenser.MAX_PRICE_CHANGE_PERCENT()}%\n`);
-  
-  console.log("🔒 TokenVesting Security:");
-  console.log(`   ✅ Pausable: Enabled`);
-  console.log(`   ✅ Can emergency pause: Yes\n`);
   
   console.log("🔒 InvestorRegistry Limits:");
   console.log(`   ✅ MAX_INVESTORS: ${await investorRegistry.MAX_INVESTORS()}\n`);
@@ -155,11 +156,18 @@ async function main() {
 
   // 9. Print verification commands
   console.log("📝 Verification Commands:\n");
-  console.log(`npx hardhat verify --network ${hre.network.name} ${omkToken.address}`);
-  console.log(`npx hardhat verify --network ${hre.network.name} ${tokenVesting.address} ${omkToken.address} ${deployer.address}`);
-  console.log(`npx hardhat verify --network ${hre.network.name} ${privateSale.address} ${omkToken.address} ${TREASURY_ADDRESS} ${deployer.address} ${QUEEN_MANAGER_ADDRESS}`);
-  console.log(`npx hardhat verify --network ${hre.network.name} ${investorRegistry.address} ${omkToken.address} ${deployer.address}`);
-  console.log(`npx hardhat verify --network ${hre.network.name} ${omkDispenser.address} ${omkToken.address} ${deployer.address} ${QUEEN_MANAGER_ADDRESS}\n`);
+  console.log(
+    `npx hardhat verify --network ${hre.network.name} ${omkToken.address} "${OMK_NAME}" "${OMK_SYMBOL}" ${ADMIN_ADDRESS} ${TREASURY_ADDRESS} ${QUEEN_ADDRESS} ${FOUNDERS_ADDRESS} ${ADVISORS_ADDRESS}`
+  );
+  console.log(
+    `npx hardhat verify --network ${hre.network.name} ${privateSale.address} ${omkToken.address} ${TREASURY_ADDRESS} ${deployer.address} ${QUEEN_MANAGER_ADDRESS}`
+  );
+  console.log(
+    `npx hardhat verify --network ${hre.network.name} ${investorRegistry.address} ${omkToken.address} ${deployer.address}`
+  );
+  console.log(
+    `npx hardhat verify --network ${hre.network.name} ${omkDispenser.address} ${omkToken.address} ${deployer.address} ${QUEEN_MANAGER_ADDRESS}\n`
+  );
 
   console.log("✅ Deployment Complete! All security fixes applied.\n");
   console.log("🎉 Ready for testing on", hre.network.name);

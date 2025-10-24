@@ -78,7 +78,13 @@ class BlockchainConnector:
     
     async def _load_contracts(self):
         """Load all contract instances"""
-        contracts_dir = Path(__file__).parent.parent.parent.parent / "contracts" / "ethereum" / "abis"
+        parents = list(Path(__file__).resolve().parents)
+        candidates = []
+        if len(parents) > 4:
+            candidates.append(parents[4] / "contracts" / "ethereum" / "abis")
+        if len(parents) > 5:
+            candidates.append(parents[5] / "contracts" / "ethereum" / "abis")
+        contracts_dir = next((p for p in candidates if p.exists()), Path(__file__).resolve().parent)
         
         # BeeSpawner - For managing bee agents
         if settings.BEE_SPAWNER_ADDRESS:
@@ -152,10 +158,13 @@ class BlockchainConnector:
         """Load a contract instance from ABI"""
         try:
             abi_path = abis_dir / f"{name}.json"
-            
             if not abi_path.exists():
-                logger.warning(f"ABI file not found for {name} at {abi_path}")
-                return None
+                matches = list(abis_dir.rglob(f"{name}.json"))
+                if matches:
+                    abi_path = matches[0]
+                else:
+                    logger.warning(f"ABI file not found for {name} at {abi_path}")
+                    return None
             
             with open(abi_path, "r") as f:
                 abi_data = json.load(f)

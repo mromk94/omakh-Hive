@@ -3,6 +3,8 @@ Price Oracles Data Collector for Fivetran
 Collects price feed data from Chainlink, Pyth, etc.
 """
 from typing import Dict, List, Any
+import os
+import json
 from datetime import datetime
 import structlog
 
@@ -43,12 +45,30 @@ class PriceOraclesConnector:
                 logger.error("Failed to connect to Ethereum RPC")
                 return []
             
-            # Chainlink price feed addresses (Ethereum Mainnet)
-            PRICE_FEEDS = {
-                'ETH/USD': '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
-                'BTC/USD': '0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c',
-                'USDC/USD': '0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6'
-            }
+            feeds_env = os.getenv('CHAINLINK_FEEDS_JSON')
+            PRICE_FEEDS: Dict[str, str] = {}
+            if feeds_env:
+                try:
+                    PRICE_FEEDS = json.loads(feeds_env)
+                except Exception:
+                    PRICE_FEEDS = {}
+            if not PRICE_FEEDS:
+                eth = os.getenv('CHAINLINK_FEED_ETH_USD')
+                btc = os.getenv('CHAINLINK_FEED_BTC_USD')
+                usdc = os.getenv('CHAINLINK_FEED_USDC_USD')
+                if eth or btc or usdc:
+                    if eth:
+                        PRICE_FEEDS['ETH/USD'] = eth
+                    if btc:
+                        PRICE_FEEDS['BTC/USD'] = btc
+                    if usdc:
+                        PRICE_FEEDS['USDC/USD'] = usdc
+            if not PRICE_FEEDS:
+                PRICE_FEEDS = {
+                    'ETH/USD': '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
+                    'BTC/USD': '0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c',
+                    'USDC/USD': '0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6'
+                }
             
             # Chainlink Aggregator ABI (minimal)
             AGGREGATOR_ABI = [

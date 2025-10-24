@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import app.models.database as db
+from app.models import database as db
 from app.bees.enhanced_security_bee import EnhancedSecurityBee
 from app.bees.data_pipeline_bee import DataPipelineBee
 from app.integrations.elastic_search import ElasticSearchIntegration
@@ -58,6 +58,12 @@ class UpdateConfigRequest(BaseModel):
     allow_property_investment: Optional[bool] = None
     allow_staking: Optional[bool] = None
     allow_governance: Optional[bool] = None
+    # Staking controls
+    staking_apr: Optional[float] = None
+    staking_lock_days: Optional[int] = None
+    staking_terms: Optional[str] = None
+    # Social links (admin-editable)
+    social_links: Optional[Dict[str, str]] = None
 
 class SetOMKContractRequest(BaseModel):
     address: str
@@ -94,6 +100,9 @@ class UpdatePaymentMethodsRequest(BaseModel):
 
 class UpdateTGEDateRequest(BaseModel):
     tge_date: str  # ISO format date string
+
+class PropertyPayload(BaseModel):
+    data: Dict[str, Any]
 
 class VerifyPaymentRequest(BaseModel):
     request_id: str
@@ -227,6 +236,30 @@ async def update_tge_date(
         "message": "TGE date updated successfully",
         "tge_date": config['tge_date']
     }
+
+# ==================== PROPERTIES MANAGEMENT ====================
+
+@router.get("/properties")
+async def admin_list_properties(admin: bool = Depends(verify_admin)):
+    props = db.list_properties()
+    return { "success": True, "properties": props, "total": len(props) }
+
+@router.post("/properties")
+async def admin_create_property(payload: PropertyPayload, admin: bool = Depends(verify_admin)):
+    created = db.upsert_property(payload.data)
+    return { "success": True, "property": created }
+
+@router.put("/properties/{prop_id}")
+async def admin_update_property(prop_id: str, payload: PropertyPayload, admin: bool = Depends(verify_admin)):
+    updated = db.upsert_property({ **payload.data, 'id': prop_id })
+    return { "success": True, "property": updated }
+
+@router.delete("/properties/{prop_id}")
+async def admin_delete_property(prop_id: str, admin: bool = Depends(verify_admin)):
+    ok = db.delete_property(prop_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Property not found")
+    return { "success": True, "deleted": prop_id }
 
 @router.get("/config/otc-flow")
 async def get_active_otc_flow_endpoint(admin: bool = Depends(verify_admin)):

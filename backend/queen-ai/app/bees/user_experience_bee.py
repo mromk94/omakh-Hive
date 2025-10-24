@@ -435,8 +435,26 @@ class UserExperienceBee(BaseBee):
                 ]
             }
         
-        # Generic fallback with better response
+        # Generic fallback: try LLM when available, otherwise provide suggestions
         else:
+            try:
+                if hasattr(self, 'llm') and self.llm:
+                    llm_out = await self.llm.generate(
+                        prompt=user_input,
+                        context={"channel": "frontend", **context},
+                        temperature=0.7,
+                        max_tokens=600,
+                    )
+                    # Handle both dict or str outputs gracefully
+                    if isinstance(llm_out, dict):
+                        text = llm_out.get("text") or llm_out.get("message") or ""
+                    else:
+                        text = str(llm_out)
+                    if text.strip():
+                        return {"success": True, "message": text, "llm_powered": True}
+            except Exception as e:
+                logger.warning("LLM fallback failed", error=str(e))
+
             return {
                 "success": True,
                 "message": f"I want to make sure I understand you correctly! 🤔\n\nCould you rephrase that, or choose from these popular topics?",

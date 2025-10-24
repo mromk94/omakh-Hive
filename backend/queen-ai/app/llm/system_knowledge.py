@@ -44,6 +44,8 @@ class SystemKnowledge:
                 with open(self.knowledge_file, "r") as f:
                     self.knowledge = json.load(f)
                 logger.info("System knowledge loaded", version=self.knowledge.get("version", "unknown"))
+                # Upgrade existing knowledge with latest defaults (non-destructive merge)
+                self._upgrade_knowledge_defaults()
             else:
                 # Initialize with OMK Hive defaults
                 self._initialize_omk_knowledge()
@@ -72,6 +74,14 @@ class SystemKnowledge:
                         "kingdom_admin": "omk-frontend/app/kingdom",
                         "kingdom_components": "omk-frontend/app/kingdom/components"
                     }
+                },
+                "new_frontend": {
+                    "directory": "new-frontend",
+                    "framework": "Next.js 16",
+                    "port": 3000,
+                    "package_manager": "npm",
+                    "shared_constants": "shared/config/constants.ts",
+                    "dev_proxy": "/kingdom -> http://localhost:3001/kingdom"
                 },
                 "backend": {
                     "directory": "backend/queen-ai",
@@ -116,7 +126,27 @@ class SystemKnowledge:
                     "admin": "/api/v1/admin",
                     "admin_claude": "/api/v1/admin/claude",
                     "teacher_bee": "/api/v1/teacher-bee",
-                    "frontend": "/api/v1/frontend"
+                    "frontend": "/api/v1/frontend",
+                    "market_omk": "/api/v1/market/omk"
+                }
+            },
+
+            # Start Methods
+            "start_methods": {
+                "scripts": {
+                    "start": "./start-omakh.sh",
+                    "stop": "./stop-omakh.sh",
+                    "reboot": "./reboot-omakh.sh"
+                },
+                "manual": {
+                    "backend": "uvicorn main:app --host 0.0.0.0 --port 8001 --reload",
+                    "new_frontend": "npm run dev (port 3000)",
+                    "admin_frontend": "npm run dev -- -p 3001"
+                },
+                "logs": {
+                    "backend": "logs/queen-backend.log",
+                    "new_frontend": "logs/new-frontend.log",
+                    "admin_frontend": "logs/frontend.log"
                 }
             },
             
@@ -321,6 +351,7 @@ class SystemKnowledge:
         theme = self.knowledge.get("theme", {})
         patterns = self.knowledge.get("patterns", {})
         known_issues = self.knowledge.get("known_issues", {})
+        start_methods = self.knowledge.get("start_methods", {})
         
         context = f"""# PERSISTENT PROJECT KNOWLEDGE (Memorized)
 
@@ -333,6 +364,12 @@ instead of repeatedly reviewing the codebase.
   - Port: {structure.get('frontend', {}).get('port', 3001)} (ALWAYS USE THIS PORT!)
   - Admin Dashboard: omk-frontend/app/kingdom/
   - Components: omk-frontend/app/kingdom/components/
+
+- New Frontend (Site): {structure.get('new_frontend', {}).get('directory', 'new-frontend')}
+  - Framework: {structure.get('new_frontend', {}).get('framework', 'Next.js 16')}
+  - Port: {structure.get('new_frontend', {}).get('port', 3000)}
+  - Shared Constants: {structure.get('new_frontend', {}).get('shared_constants', 'shared/config/constants.ts')}
+  - Dev Proxy: {structure.get('new_frontend', {}).get('dev_proxy', '/kingdom -> http://localhost:3001/kingdom')}
 
 - Backend: {structure.get('backend', {}).get('directory', 'backend/queen-ai')}
   - Framework: {structure.get('backend', {}).get('framework', 'FastAPI')}
@@ -362,12 +399,47 @@ Backend API Pattern:
 ## Known Issues (NEVER REPEAT):
 {self._format_known_issues(known_issues)}
 
+## Start Methods (Scripts & Manual)
+- Scripts: start={start_methods.get('scripts', {}).get('start', './start-omakh.sh')}, stop={start_methods.get('scripts', {}).get('stop', './stop-omakh.sh')}, reboot={start_methods.get('scripts', {}).get('reboot', './reboot-omakh.sh')}
+- Manual: backend='{start_methods.get('manual', {}).get('backend', 'uvicorn ...:8001')}', site='{start_methods.get('manual', {}).get('new_frontend', 'npm run dev :3000')}', admin='{start_methods.get('manual', {}).get('admin_frontend', 'npm run dev -p 3001')}'
+- Logs: backend='{start_methods.get('logs', {}).get('backend', 'logs/queen-backend.log')}', site='{start_methods.get('logs', {}).get('new_frontend', 'logs/new-frontend.log')}', admin='{start_methods.get('logs', {}).get('admin_frontend', 'logs/frontend.log')}'
+
 ## Last Updated
 {self.knowledge.get('last_updated', 'Unknown')}
 
 You KNOW this information. Don't review it again unless explicitly asked to update your knowledge.
 """
         return context
+
+    def _upgrade_knowledge_defaults(self):
+        """Merge latest defaults into existing knowledge without removing prior data."""
+        changed = False
+        struct = self.knowledge.setdefault("structure", {})
+        if "new_frontend" not in struct:
+            struct["new_frontend"] = {
+                "directory": "new-frontend",
+                "framework": "Next.js 16",
+                "port": 3000,
+                "package_manager": "npm",
+                "shared_constants": "shared/config/constants.ts",
+                "dev_proxy": "/kingdom -> http://localhost:3001/kingdom",
+            }
+            changed = True
+        # Ensure endpoints include market omk
+        endpoints = self.knowledge.setdefault("endpoints", {}).setdefault("key_endpoints", {})
+        if "market_omk" not in endpoints:
+            endpoints["market_omk"] = "/api/v1/market/omk"
+            changed = True
+        # Start methods info
+        if "start_methods" not in self.knowledge:
+            self.knowledge["start_methods"] = {
+                "scripts": {"start": "./start-omakh.sh", "stop": "./stop-omakh.sh", "reboot": "./reboot-omakh.sh"},
+                "manual": {"backend": "uvicorn main:app --host 0.0.0.0 --port 8001 --reload", "new_frontend": "npm run dev (port 3000)", "admin_frontend": "npm run dev -- -p 3001"},
+                "logs": {"backend": "logs/queen-backend.log", "new_frontend": "logs/new-frontend.log", "admin_frontend": "logs/frontend.log"},
+            }
+            changed = True
+        if changed:
+            self._save_knowledge()
     
     def _format_known_issues(self, known_issues: Dict[str, Any]) -> str:
         """Format known issues for context"""

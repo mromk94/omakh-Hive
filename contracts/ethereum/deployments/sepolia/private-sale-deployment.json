@@ -1,0 +1,28 @@
+{
+  "network": "sepolia",
+  "timestamp": "2025-10-22T21:39:14.833Z",
+  "deployer": "0xd4a3209ff4ADf36d6e43eeDC41A8C705e25708c1",
+  "contracts": {
+    "omkToken": "0x9654B4F2AC47BF46884d69BcCC636ef5A9c48632",
+    "privateSale": "0xc801977eA4c3dAA93ca18e00aB07625923714484",
+    "investorRegistry": "0x966E8C8C8a0a267Baf978A7cECBc1baB66b47939",
+    "omkDispenser": "0x6165050d8F9a09498D5A36Ea58BBcc9c0039889D"
+  },
+  "securityFixes": {
+    "privateSale": {
+      "minPurchase": "2000 OMK",
+      "maxRaise": "$12.25M",
+      "vestingSetupFixed": true
+    },
+    "omkDispenser": {
+      "priceUpdateDelay": "30 minutes",
+      "maxPriceChange": "20%"
+    },
+    "tokenVesting": {
+      "pausable": true
+    },
+    "investorRegistry": {
+      "maxInvestors": 10000
+    }
+  }
+}

@@ -14,6 +14,44 @@
 
 ---
 
+## Runtime start & logs (Quick Guide)
+
+- **Start (recommended scripts)**
+  - Start: `./start-omakh.sh`
+  - Stop: `./stop-omakh.sh`
+  - Reboot: `./reboot-omakh.sh`
+  - Behavior
+    - Backend: `http://localhost:8001`
+    - New Frontend (site): `http://localhost:3000` (Admin via `/kingdom`)
+    - Admin (legacy): `http://localhost:3001/kingdom`
+    - Logs: `logs/queen-backend.log`, `logs/new-frontend.log`, `logs/frontend.log`
+
+- **Manual (alternative)**
+  - Backend: `uvicorn main:app --host 0.0.0.0 --port 8001 --reload` in `backend/queen-ai/`
+  - New Frontend: `npm run dev` in `new-frontend/`
+  - Admin: `npm run dev -- -p 3001` in `omk-frontend/`
+
+- **Tailing logs**
+  - `tail -f logs/queen-backend.log`
+  - `tail -f logs/new-frontend.log`
+  - `tail -f logs/frontend.log`
+
+- **Troubleshooting**
+  - Port in use (3000/3001/8001): run `./stop-omakh.sh` to free ports and then restart.
+  - Ensure `NEXT_PUBLIC_QUEEN_API_URL` points to backend (`http://localhost:8001`) in both frontends.
+
+## 📊 LATEST SESSION SUMMARY (October 23, 2025)
+
+- **[Frontend stability]** Fixed Next.js hydration mismatch by gating `DevEnvBanner` from SSR (`omk-frontend/components/layout/DevEnvBanner.tsx`).
+- **[OMK balance bubble]** Wired ERC20 `balanceOf` via `usePublicClient()` with network-aware envs (`NEXT_PUBLIC_OMK_TOKEN_MAINNET`/`SEPOLIA`/fallback) and post-tx refresh events. Files: `components/web3/BalanceBubble.tsx`, `app/swap/page.tsx`, `components/cards/PrivateSaleCard.tsx`.
+- **[Private Sale + Swap UX]** Replaced alerts with `react-hot-toast` toasts and refresh balances after success. Files: `app/swap/page.tsx`, `components/cards/PrivateSaleCard.tsx`.
+- **[/kingdom admin]** Added inline Dev Env panel in `Contracts` tab and read-only contract health checks; added optional WebSocket live updates for Hive Monitor with polling fallback. Files: `app/kingdom/components/ContractHealth.tsx`, `app/kingdom/components/HiveMonitor.tsx`, `app/kingdom/page.tsx`.
+- **[Local dev integration]** Frontend API base set to `http://localhost:8001` in `.env.local`; wagmi configured for `localhost` chain (31337). Files: `.env.local`, `lib/web3/config.ts`.
+- **[TypeScript target]** Bumped `tsconfig.json` target to `es2020` to support BigInt literals.
+- **[Backend bring-up]** Queen AI backend started with `uvicorn` (`backend/queen-ai/main.py`), logs show all bees registered and Queen operational. Health endpoint expected at `/health`.
+
+---
+
 ## 📊 LATEST SESSION SUMMARY (October 9, 2025)
 
 ### ✅ COMPLETED TODAY:
@@ -2657,7 +2695,101 @@ Next:
 - Deploy backend with `ELASTIC_ENDPOINT` and `ELASTIC_API_KEY` set at deploy time (not committed)
 - In Fivetran GCS connector: Folder Path `blockchain_data/`, File Pattern `^.*_(blockchain|dex|oracle)\.csv$`, File Type CSV; exclude `metadata/`
 
+## Log Entry: 2025-10-22 (Sepolia Deployment + Private Sale Config)
+Prime Task: Deploy contracts to Sepolia, configure PrivateSale payment token, activate sale, add payment watcher
+Status: Completed (addresses captured, sale active)
+Developer: Cascade
+
+Actions:
+- Deployed contracts to Sepolia
+  - OMKToken: `0x9654B4F2AC47BF46884d69BcCC636ef5A9c48632`
+  - PrivateSale: `0xc801977eA4c3dAA93ca18e00aB07625923714484`
+  - PrivateInvestorRegistry: `0x966E8C8C8a0a267Baf978A7cECBc1baB66b47939`
+  - OMKDispenser: `0x6165050d8F9a09498D5A36Ea58BBcc9c0039889D`
+- Configured stablecoin (USDC/USDT test addr): `0x8b81ffe0ad7bca69f05b18a603f4352d22cfa8b2`
+  - PrivateSale.setPaymentToken(..., true) → TX: `0xe7aeb1c08929b9ef67e9ccfc1c26fcb307cfd5f601506a4c92f352ea4ffe1148`
+  - OMKDispenser.setSupportedToken(..., true, 6, 100000000) → TX: `0xa7aa0354e5da4ea242dbb0b0872896e1cb6b5e662636624e671958f67aec3741`
+- Activated sale
+  - PrivateSale.activateSale() → TX: `0x77aaa223e1bf592e6c340bd0afee4a1b346172914740a91ceb840962ef31edd7`
+- Whitelisted initial investor
+  - Investor: `0x884F953A370D06E7f64A40D7814d58A49412124B`
+  - PrivateSale.batchWhitelist([investor], true) → TX: `0x55370b20ec699d2220dcb9c55aac81a137491ebd89b98f45fe4bd561a832decc`
+- Added on-chain payment watcher script
+  - Path: `backend/api-gateway/scripts/payment-watcher.js`
+  - Env: `SEPOLIA_RPC_URL`/`SEPOLIA_WSS_URL`, `STABLECOIN_ADDRESS`, `TREASURY_ADDRESS`
+  - Run: `node scripts/payment-watcher.js` (listen) or `node scripts/payment-watcher.js <TX_HASH>` (verify specific tx)
+
+Next:
+- Verify contracts on Etherscan (manual UI now; or schedule Hardhat v3 + hardhat-verify upgrade)
+- Update frontend/backend envs with new addresses and deploy backend watcher in Cloud Run
+
+## Log Entry: 2025-10-23 (Sepolia Control Contracts Deployment)
+Prime Task: Deploy & wire Queen/Hive control contracts
+Status: Completed
+Developer: Cascade
+
+Actions:
+- Deployed remaining control contracts to Sepolia (admin used for all critical roles per instruction)
+  - OMKToken: `0x9654B4F2AC47BF46884d69BcCC636ef5A9c48632` (previous)
+  - PrivateSale: `0xc801977eA4c3dAA93ca18e00aB07625923714484` (previous)
+  - PrivateInvestorRegistry: `0x966E8C8C8a0a267Baf978A7cECBc1baB66b47939` (previous)
+  - OMKDispenser: `0x6165050d8F9a09498D5A36Ea58BBcc9c0039889D` (previous)
+  - BeeSpawner: `0x4CfEEB3E896fe73063d9c0A527C61381f346f60F`
+  - GovernanceManager: `0x69F0A899C1a3467305d80629017c4fA5AaaDA077`
+  - TreasuryVault: `0x40Fc44E22c9E3B98be724d6E4a3e773702Ab302E`
+  - EmergencySystem: `0x98624BAA37bD4e1f89D8cA9658622967639911A4`
+  - LiquiditySentinel: `0x38fBbe174FaEaaa17aB9b53E8B64d96B297846f0`
+  - EcosystemManager: `0xE30FBbb8a278d75846B485F6C15363b9c4953DC0`
+  - AdvisorsManager: `0x026d1f8D1eB8094432daD9dd9d92B233f1CfEAF7`
+  - QueenController: `0xf7435917202342A93A4bD52640CB0df19f0666bB`
+  - VestingManager: `0xeb8EE79C8c93052aF2e101dea8c9ABfcD9F1088b`
+  - OMKBridge: `0x38fE0Ec7CF2501cbae5b2d2157D18fa4c7A9C628`
+  - SystemDashboard: `0x97d654425F6e28CBd2F968F4114ad60803ed197F`
+
+Notes:
+- Admin/Queen/Treasurer/Guardian: `0xd4a3209ff4ADf36d6e43eeDC41A8C705e25708c1` (testnet)
+- Backend ABI loader patched to support nested ABIs at `backend/queen-ai/app/utils/blockchain.py`.
+- QueenController configured with `setTreasuryVault()` and `setLiquiditySentinel()`.
+
+## Log Entry: 2025-10-23 (Env Wiring Audit + Local Bring-up Plan)
+Status: Completed (env updates), Verifying locally
+Developer: Cascade
+
+Changes Applied:
+- Backend Queen AI env (`backend/queen-ai/.env`):
+  - Set Sepolia RPC and Chain ID.
+  - Updated contract addresses to deployed values: `BeeSpawner`, `SystemDashboard`, `GovernanceManager`, `TreasuryVault`, `OMKBridge`, `EcosystemManager`.
+  - Added missing keys: `ADVISORS_MANAGER_ADDRESS`, `QUEEN_CONTROLLER_ADDRESS`, `VESTING_MANAGER_ADDRESS`.
+  - Fixed `QUEEN_WALLET_PRIVATE_KEY` to include `0x` prefix.
+- API Gateway env (`backend/api-gateway/.env`):
+  - `QUEEN_AI_URL=http://localhost:8001` (matches Queen port).
+  - Filled `SEPOLIA_RPC_URL` and `SEPOLIA_WSS_URL` for payment watcher.
+  - Confirmed `STABLECOIN_ADDRESS` and `TREASURY_ADDRESS` per watcher.
+- Frontend env (`omk-frontend/.env.local`):
+  - Confirmed `NEXT_PUBLIC_OMK_TOKEN_ADDRESS` present alongside `NEXT_PUBLIC_OMK_TOKEN_SEPOLIA`.
+  - `NEXT_PUBLIC_PRIVATE_SALE_ADDRESS`, `NEXT_PUBLIC_OMK_DISPENSER_ADDRESS`, `NEXT_PUBLIC_USDT_ADDRESS`, `NEXT_PUBLIC_USDC_ADDRESS`, `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` present.
+
+Local Verification Plan (Larry Mode):
+1) Check if Queen AI is already running: `GET http://localhost:8001/health`.
+2) If not running, start Queen AI from `backend/queen-ai/`: `python3 main.py`.
+3) Check API Gateway on port 3000 root.
+4) Start payment watcher (optional) from `backend/api-gateway/`: `npm run watch:payments`.
+5) Frontend (if needed) from `omk-frontend/`: `npm run dev`.
+
+Cloud Deployment Checklist (env variables by service):
+- Queen AI (Cloud Run/App Engine):
+  - Required: `ETHEREUM_RPC_URL`, `ETHEREUM_CHAIN_ID`, `QUEEN_WALLET_PRIVATE_KEY` (Secret Manager), all PRIME2 contract addresses (`OMK_TOKEN_ADDRESS`, `BEE_SPAWNER_ADDRESS`, `SYSTEM_DASHBOARD_ADDRESS`, `GOVERNANCE_MANAGER_ADDRESS`, `TREASURY_VAULT_ADDRESS`, `OMK_BRIDGE_ADDRESS`, `ECOSYSTEM_MANAGER_ADDRESS`, `ADVISORS_MANAGER_ADDRESS`, `QUEEN_CONTROLLER_ADDRESS`, `VESTING_MANAGER_ADDRESS`).
+  - Networking: allow egress to Infura; expose port `$PORT` (FastAPI uses `PORT` with default 8001).
+  - CORS: include frontend origin(s) in `CORS_ORIGINS`.
+- API Gateway (Cloud Run):
+  - Required: `QUEEN_AI_URL` pointing to Queen's Cloud Run URL, `SEPOLIA_RPC_URL`, `SEPOLIA_WSS_URL`, `STABLECOIN_ADDRESS`, `TREASURY_ADDRESS`.
+  - Optional: `DATABASE_URL`, `REDIS_URL` per environment.
+- Frontend (Cloud Run/Vercel):
+  - Required: `NEXT_PUBLIC_QUEEN_API_URL` (Queen public URL), public contract envs listed above, `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`.
+
+Post-Verification Next Steps:
+- If localhost is healthy, proceed to deploy Queen and API Gateway to Cloud Run with the above envs, then update frontend `NEXT_PUBLIC_QUEEN_API_URL` to the Cloud Run URL.
+
 # END OF LOGS.MD
 
 **Note**: This document will be continuously updated as development progresses. All team members should log their work regularly to maintain accurate project tracking.
-

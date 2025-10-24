@@ -4,7 +4,6 @@ Direct connection to Anthropic's Claude API for autonomous system development
 """
 
 import os
-import anthropic
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
@@ -13,6 +12,9 @@ import structlog
 from app.llm.system_knowledge import system_knowledge
 from app.learning.observer import LearningObserver
 from app.tools.database_query_tool import DatabaseQueryTool
+from app.llm.persona_loader import get_persona_header
+from app.llm.abstraction import LLMAbstraction
+from app.config.settings import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -22,25 +24,23 @@ class ClaudeQueenIntegration:
     """
     
     def __init__(self, api_key: Optional[str] = None, context: Optional[str] = None):
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = (
+            api_key or os.getenv("OPENAI_API_KEY") or settings.OPENAI_API_KEY or settings.GEMINI_API_KEY
+        )
         self.client = None
-        self.model = "claude-3-5-sonnet-20241022"  # Latest Claude model
+        self.model = "gpt-4o"  # OpenAI default model (adjust as needed)
         self.conversation_history: List[Dict] = []
         self.context = context or "general"  # admin_dashboard, development, general
         self.user_role = None  # Will be set based on context
         self.enabled = False
         
-        # Try to initialize Claude client
-        if self.api_key:
-            try:
-                self.client = anthropic.Anthropic(api_key=self.api_key)
-                self.enabled = True
-                logger.info("Claude integration initialized", context=self.context)
-            except Exception as e:
-                logger.warning(f"Claude client initialization failed: {e}")
-                self.enabled = False
+        # Use LLM Abstraction with OpenAI provider
+        self.llm = LLMAbstraction()
+        if settings.OPENAI_API_KEY or settings.GEMINI_API_KEY or os.getenv("OPENAI_API_KEY"):
+            self.enabled = True
+            logger.info("Admin LLM integration (GPT primary, Gemini fallback) ready", context=self.context)
         else:
-            logger.warning("ANTHROPIC_API_KEY not found - Claude integration disabled")
+            logger.warning("No admin LLM provider keys found - integration disabled")
         
         # Persistent memory and learning
         self.system_knowledge = system_knowledge
@@ -67,16 +67,16 @@ class ClaudeQueenIntegration:
             Dict with response and metadata
         """
         
-        # Check if Claude is available
-        if not self.enabled or not self.client:
+        # Check if any admin LLM is available
+        if not self.enabled:
             return {
                 "success": False,
-                "error": "Claude integration not available. Please set ANTHROPIC_API_KEY in .env file.",
-                "fallback_message": "I'm currently not connected to Claude API. Please configure ANTHROPIC_API_KEY to enable intelligent chat responses.",
+                "error": "Admin LLM integration not available. Please set OPENAI_API_KEY or GEMINI_API_KEY.",
+                "fallback_message": "No admin LLM configured. Set OPENAI_API_KEY (preferred) or GEMINI_API_KEY.",
                 "timestamp": datetime.utcnow().isoformat()
             }
         
-        # Build system prompt
+        # Build system prompt (used as context only)
         system_prompt = self._build_system_prompt(system_context, include_system_info)
         
         # Add message to history
@@ -87,17 +87,29 @@ class ClaudeQueenIntegration:
         })
         
         try:
-            # Call Claude API
-            response = self.client.messages.create(
-                model=self.model,
+            if not self.llm.initialized:
+                await self.llm.initialize()
+
+            available = self.llm.get_available_providers()
+            provider_name = "openai" if "openai" in available else ("gemini" if "gemini" in available else None)
+            if not provider_name:
+                return {
+                    "success": False,
+                    "error": "No LLM providers initialized",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+            # Update model metadata for transparency
+            self.model = "gpt-4o" if provider_name == "openai" else "gemini-2.0-flash"
+
+            assistant_message = await self.llm.generate(
+                prompt=message,
+                context={"system": system_prompt},
+                temperature=0.7,
                 max_tokens=4096,
-                system=system_prompt,
-                messages=self._format_conversation_history(),
-                temperature=0.7
+                provider=provider_name,
+                use_memory=True,
             )
-            
-            # Extract response
-            assistant_message = response.content[0].text
             
             # Add to history
             self.conversation_history.append({
@@ -112,7 +124,7 @@ class ClaudeQueenIntegration:
                 assistant_response=assistant_message,
                 context=self.context,
                 model=self.model,
-                tokens_used=response.usage.input_tokens + response.usage.output_tokens
+                tokens_used=len(message.split()) + len(assistant_message.split())
             )
             
             # Check if Queen is proposing code changes
@@ -124,10 +136,7 @@ class ClaudeQueenIntegration:
                 "code_proposal": code_proposal,
                 "model": self.model,
                 "timestamp": datetime.utcnow().isoformat(),
-                "tokens_used": {
-                    "input": response.usage.input_tokens,
-                    "output": response.usage.output_tokens
-                }
+                "tokens_used": None
             }
             
         except Exception as e:
@@ -365,18 +374,16 @@ You are the brain of the hive. Think deeply, act wisely, propose confidently."""
     ):
         """Log interaction for learning function"""
         try:
+            provider_name = "openai" if "gpt" in (model or "").lower() else ("gemini" if "gemini" in (model or "").lower() else "admin_llm")
             await self.learning_observer.observe_llm_interaction(
                 conversation_id=f"claude_{datetime.utcnow().timestamp()}",
-                provider="anthropic",
+                provider=provider_name,
                 model=model,
-                user_prompt=user_message,
-                assistant_response=assistant_response,
-                metadata={
-                    "context": context,
-                    "tokens_used": tokens_used,
-                    "integration": "claude_queen",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                prompt=user_message,
+                response=assistant_response,
+                tokens_used=tokens_used,
+                bee_source="claude_queen",
+                temperature=0.7,
             )
             
             # If code implementation, record in system knowledge

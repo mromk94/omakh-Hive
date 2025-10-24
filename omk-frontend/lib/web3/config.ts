@@ -1,5 +1,5 @@
 import { http, createConfig } from 'wagmi';
-import { mainnet, sepolia } from 'wagmi/chains';
+import { mainnet, sepolia, localhost } from 'wagmi/chains';
 import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors';
 
 // WalletConnect project ID - get from https://cloud.walletconnect.com
@@ -51,11 +51,12 @@ const getConnectors = () => {
 };
 
 export const config = createConfig({
-  chains: [mainnet, sepolia],
+  chains: [mainnet, sepolia, localhost],
   connectors: getConnectors(),
   transports: {
     [mainnet.id]: http(),
     [sepolia.id]: http(),
+    [localhost.id]: http(),
   },
   ssr: true,
 });

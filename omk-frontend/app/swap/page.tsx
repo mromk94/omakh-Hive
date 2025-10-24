@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDownUp, Settings, Info, Zap, TrendingUp } from 'lucide-react';
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { formatNumber, formatCurrency } from '@/lib/utils';
+import { DISPENSER_ADDRESS, DISPENSER_ABI, SUPPORTED_TOKENS, ERC20_ABI } from '@/lib/contracts/dispenser';
+import { parseEther, formatUnits, parseUnits } from 'viem';
+import { Toaster, toast } from 'react-hot-toast';
 
 interface Token {
   symbol: string;
@@ -18,6 +21,8 @@ interface Token {
 export default function SwapPage() {
   const { address, isConnected } = useAccount();
   const router = useRouter();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   
   const [fromToken, setFromToken] = useState<Token>({
     symbol: 'ETH',
@@ -40,6 +45,28 @@ export default function SwapPage() {
   const [slippage, setSlippage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showFromTokenMenu, setShowFromTokenMenu] = useState(false);
+
+  const getPriceForSymbol = (symbol: string) => {
+    if (symbol === 'ETH') return 2500;
+    if (symbol === 'USDT' || symbol === 'USDC') return 1;
+    return 0;
+  };
+
+  const selectFromToken = (symbol: 'ETH' | 'USDT' | 'USDC') => {
+    const meta = (SUPPORTED_TOKENS as any)[symbol];
+    const icon = symbol === 'ETH' ? '💎' : symbol === 'USDT' ? '💵' : '💰';
+    setFromToken({
+      symbol,
+      name: meta?.name || symbol,
+      icon,
+      balance: 0,
+      price: getPriceForSymbol(symbol)
+    });
+    setFromAmount('');
+    setToAmount('');
+    setShowFromTokenMenu(false);
+  };
 
   useEffect(() => {
     if (!isConnected) {
@@ -48,15 +75,81 @@ export default function SwapPage() {
   }, [isConnected, router]);
 
   useEffect(() => {
-    if (fromAmount) {
-      const from = parseFloat(fromAmount);
-      const rate = fromToken.price / toToken.price;
-      const to = from * rate * (1 - slippage / 100);
-      setToAmount(to.toFixed(4));
-    } else {
-      setToAmount('');
-    }
-  }, [fromAmount, fromToken, toToken, slippage]);
+    let cancelled = false;
+    const quote = async () => {
+      if (!publicClient) {
+        return;
+      }
+      if (!fromAmount) {
+        setToAmount('');
+        return;
+      }
+      try {
+        if (!DISPENSER_ADDRESS || DISPENSER_ADDRESS === '0x0000000000000000000000000000000000000000') {
+          setToAmount('');
+          return;
+        }
+        const meta = (SUPPORTED_TOKENS as any)[fromToken.symbol];
+        if (!meta) {
+          const from = parseFloat(fromAmount);
+          const rate = fromToken.price / toToken.price;
+          const to = from * rate * (1 - slippage / 100);
+          if (!cancelled) setToAmount(to.toFixed(4));
+          return;
+        }
+        const tokenIn = meta.address as `0x${string}`;
+        const amountIn = parseUnits(fromAmount || '0', meta.decimals);
+        const res: any = await publicClient.readContract({
+          address: DISPENSER_ADDRESS as `0x${string}`,
+          abi: DISPENSER_ABI as any,
+          functionName: 'getSwapQuote',
+          args: [tokenIn, amountIn],
+        });
+        const omkOut = Array.isArray(res) ? res[0] : res;
+        const omkOutAdj = parseFloat(formatUnits(omkOut, 18)) * (1 - slippage / 100);
+        if (!cancelled) setToAmount(omkOutAdj.toFixed(4));
+      } catch {
+        const from = parseFloat(fromAmount);
+        const rate = fromToken.price / toToken.price;
+        const to = from * rate * (1 - slippage / 100);
+        if (!cancelled) setToAmount(Number.isFinite(to) ? to.toFixed(4) : '');
+      }
+    };
+    quote();
+    return () => {
+      cancelled = true;
+    };
+  }, [fromAmount, fromToken, toToken, slippage, publicClient]);
+
+  // Fetch on-chain balance for selected fromToken
+  useEffect(() => {
+    let cancelled = false;
+    const loadBalance = async () => {
+      try {
+        if (!publicClient || !address) return;
+        const sym = fromToken.symbol;
+        if ((SUPPORTED_TOKENS as any)[sym]) {
+          if (sym === 'ETH') {
+            const bal = await publicClient.getBalance({ address: address as `0x${string}` });
+            if (!cancelled) setFromToken((prev) => ({ ...prev, balance: parseFloat(formatUnits(bal, 18)) }));
+          } else {
+            const meta = (SUPPORTED_TOKENS as any)[sym];
+            const bal = await publicClient.readContract({
+              address: meta.address as `0x${string}`,
+              abi: ERC20_ABI as any,
+              functionName: 'balanceOf',
+              args: [address as `0x${string}`]
+            }) as bigint;
+            if (!cancelled) setFromToken((prev) => ({ ...prev, balance: parseFloat(formatUnits(bal, meta.decimals)) }));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadBalance();
+    return () => { cancelled = true; };
+  }, [address, publicClient, fromToken.symbol]);
 
   const handleSwap = () => {
     // Temporary tokens switch
@@ -71,11 +164,121 @@ export default function SwapPage() {
   };
 
   const handleSwapTokens = async () => {
-    setIsLoading(true);
-    // Simulate swap transaction
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    alert('Swap successful! (This is a demo)');
+    try {
+      if (!fromAmount || parseFloat(fromAmount) <= 0) return;
+      setIsLoading(true);
+
+      // ETH path → on-chain swap via Dispenser
+      if (fromToken.symbol === 'ETH') {
+        if (!walletClient || !address) {
+          setIsLoading(false);
+          toast.error('Connect wallet to proceed');
+          return;
+        }
+        if (!DISPENSER_ADDRESS || DISPENSER_ADDRESS === '0x0000000000000000000000000000000000000000') {
+          setIsLoading(false);
+          toast.error('Dispenser not configured');
+          return;
+        }
+
+        // Use current displayed toAmount as slippage-adjusted minOut (18 decimals)
+        const minOut = toAmount ? parseUnits(toAmount, 18) : 0n;
+        const value = parseEther(fromAmount);
+
+        const hash = await walletClient.writeContract({
+          address: DISPENSER_ADDRESS as `0x${string}`,
+          abi: DISPENSER_ABI as any,
+          functionName: 'swapETHForOMK',
+          args: [minOut, address as `0x${string}`],
+          value,
+          account: address as `0x${string}`,
+        });
+
+        // Optional: wait for receipt with public client
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash });
+        }
+
+        // Refresh from-token balance
+        try {
+          if (publicClient) {
+            const sym = fromToken.symbol;
+            if (sym === 'ETH') {
+              const bal = await publicClient.getBalance({ address: address as `0x${string}` });
+              setFromToken((prev) => ({ ...prev, balance: parseFloat(formatUnits(bal, 18)) }));
+            }
+          }
+        } catch {}
+
+        setIsLoading(false);
+        toast.success(`Swap successful!\nTx: ${hash}`);
+        try { window.dispatchEvent(new Event('balances:refresh')); } catch {}
+        return;
+      }
+
+      // ERC20 path (USDT/USDC)
+      const meta = (SUPPORTED_TOKENS as any)[fromToken.symbol];
+      if (!meta || !walletClient || !address) {
+        setIsLoading(false);
+        toast.error('Unsupported token or wallet disconnected');
+        return;
+      }
+      const tokenIn = meta.address as `0x${string}`;
+      const amountIn = parseUnits(fromAmount, meta.decimals);
+      const minOut = toAmount ? parseUnits(toAmount, 18) : 0n;
+
+      // Check allowance
+      const allowance = await publicClient!.readContract({
+        address: tokenIn,
+        abi: ERC20_ABI as any,
+        functionName: 'allowance',
+        args: [address as `0x${string}`, DISPENSER_ADDRESS as `0x${string}`]
+      }) as bigint;
+
+      if (allowance < amountIn) {
+        const approveHash = await walletClient.writeContract({
+          address: tokenIn,
+          abi: ERC20_ABI as any,
+          functionName: 'approve',
+          args: [DISPENSER_ADDRESS as `0x${string}`, amountIn],
+          account: address as `0x${string}`,
+        });
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
+      }
+
+      const swapHash = await walletClient.writeContract({
+        address: DISPENSER_ADDRESS as `0x${string}`,
+        abi: DISPENSER_ABI as any,
+        functionName: 'swapTokenForOMK',
+        args: [tokenIn, amountIn, minOut, address as `0x${string}`],
+        account: address as `0x${string}`,
+      });
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: swapHash });
+      }
+      // Refresh from-token balance
+      try {
+        if (publicClient) {
+          const bal = await publicClient.readContract({
+            address: tokenIn,
+            abi: ERC20_ABI as any,
+            functionName: 'balanceOf',
+            args: [address as `0x${string}`]
+          }) as bigint;
+          setFromToken((prev) => ({ ...prev, balance: parseFloat(formatUnits(bal, meta.decimals)) }));
+        }
+      } catch {}
+
+      setIsLoading(false);
+      toast.success(`Swap successful!\nTx: ${swapHash}`);
+      try { window.dispatchEvent(new Event('balances:refresh')); } catch {}
+    } catch (e: any) {
+      console.error(e);
+      setIsLoading(false);
+      toast.error(e?.shortMessage || e?.message || 'Swap failed');
+    }
   };
 
   const priceImpact = 0.12;
@@ -84,6 +287,7 @@ export default function SwapPage() {
 
   return (
     <div className="min-h-screen bg-black text-stone-100">
+      <Toaster position="top-right" />
       <div className="max-w-2xl mx-auto px-6 py-12">
         {/* Header */}
         <motion.div
@@ -171,12 +375,25 @@ export default function SwapPage() {
                   >
                     MAX
                   </button>
-                  <button className="flex items-center gap-2 px-3 py-2 bg-stone-700 hover:bg-stone-600 rounded-xl transition-colors">
+                  <button onClick={() => setShowFromTokenMenu(!showFromTokenMenu)} className="flex items-center gap-2 px-3 py-2 bg-stone-700 hover:bg-stone-600 rounded-xl transition-colors">
                     <span className="text-2xl">{fromToken.icon}</span>
                     <span className="font-semibold">{fromToken.symbol}</span>
                   </button>
                 </div>
               </div>
+              {showFromTokenMenu && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {(['ETH','USDT','USDC'] as const).map((sym) => (
+                    <button
+                      key={sym}
+                      onClick={() => selectFromToken(sym)}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${fromToken.symbol === sym ? 'bg-yellow-500 text-black' : 'bg-stone-700 text-stone-200 hover:bg-stone-600'}`}
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              )}
               {fromAmount && (
                 <div className="mt-2 text-sm text-stone-400">
                   ≈ {formatCurrency(parseFloat(fromAmount) * fromToken.price)}

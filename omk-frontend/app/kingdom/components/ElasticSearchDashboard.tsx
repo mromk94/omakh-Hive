@@ -7,6 +7,7 @@ import {
   TrendingUp, Filter, Send, Loader
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -42,7 +43,7 @@ export default function ElasticSearchDashboard() {
   const loadRecentActivities = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/admin/elastic/recent`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/elastic/recent`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -68,8 +69,8 @@ export default function ElasticSearchDashboard() {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
       const endpoint = searchType === 'rag' 
-        ? `${BACKEND_URL}/api/v1/admin/elastic/rag`
-        : `${BACKEND_URL}/api/v1/admin/elastic/search`;
+        ? `${API_ENDPOINTS.ADMIN}/elastic/rag`
+        : `${API_ENDPOINTS.ADMIN}/elastic/search`;
 
       const filters = filterBee !== 'all' ? { bee_name: filterBee } : undefined;
 

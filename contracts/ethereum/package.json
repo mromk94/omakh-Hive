@@ -24,29 +24,20 @@
     "@openzeppelin/contracts-upgradeable": "4.9.5"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
-    "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@nomiclabs/hardhat-etherscan": "^3.1.7",
-    "@openzeppelin/hardhat-upgrades": "^1.22.1",
-    "@typechain/ethers-v5": "^10.2.0",
-    "@typechain/hardhat": "^6.1.5",
+    "@nomicfoundation/hardhat-ethers": "^4.0.2",
+    "@nomicfoundation/hardhat-verify": "^3.0.4",
     "@types/chai": "^4.3.5",
     "@types/mocha": "^10.0.6",
     "@types/node": "^18.18.5",
     "chai": "^4.3.10",
     "dotenv": "^16.3.1",
-    "ethers": "^5.7.2",
-    "hardhat": "^2.19.0",
-    "hardhat-abi-exporter": "^2.10.3",
-    "hardhat-contract-sizer": "^2.8.0",
-    "hardhat-deploy": "^0.11.34",
-    "hardhat-gas-reporter": "^1.0.9",
-    "solidity-coverage": "^0.8.5",
+    "ethers": "^6.12.0",
+    "hardhat": "^3.0.8",
     "ts-node": "^10.9.2",
-    "typechain": "^8.3.1",
     "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=16.0.0"
-  }
+  },
+  "type": "module"
 }

@@ -8,6 +8,7 @@ import {
   GitBranch, TestTube, Zap, Shield, TrendingUp
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -53,7 +54,7 @@ export default function QueenDevelopment() {
   const loadConversationHistory = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/queen-dev/conversation-history`, {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/conversation-history`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -75,7 +76,7 @@ export default function QueenDevelopment() {
   const loadProposals = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/queen-dev/proposals`, {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/proposals`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -110,7 +111,7 @@ export default function QueenDevelopment() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${BACKEND_URL}/api/v1/queen-dev/chat`, {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +162,7 @@ export default function QueenDevelopment() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${BACKEND_URL}/api/v1/queen-dev/analyze-system`, {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/analyze-system`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

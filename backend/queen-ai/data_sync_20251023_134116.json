@@ -1,0 +1,10 @@
+{
+  "metadata": {
+    "collected_at": "2025-10-23T13:41:13.064731",
+    "collector": "DataPipelineBee",
+    "version": "1.0"
+  },
+  "blockchain": [],
+  "dex": [],
+  "oracle": []
+}

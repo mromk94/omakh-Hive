@@ -118,3 +118,19 @@ class ConversationMemory:
             context_lines.append(f"Assistant: {exchange['assistant']}")
         
         return "\n".join(context_lines)
+
+    async def get_nuggets(self, limit: int = 3) -> List[str]:
+        items = []
+        for exchange in reversed(self.exchanges):
+            a = exchange.get("assistant", "").strip()
+            if a:
+                items.append(a[:160])
+            if len(items) >= limit:
+                break
+        return list(reversed(items))
+
+    def last_drift(self) -> bool:
+        if not self.exchanges:
+            return False
+        meta = self.exchanges[-1].get("metadata", {}) or {}
+        return bool(meta.get("drift"))

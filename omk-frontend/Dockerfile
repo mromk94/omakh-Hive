@@ -23,12 +23,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+# Create non-root user (Debian)
+RUN groupadd -g 1001 nodejs \
+  && useradd -m -u 1001 -g nodejs -s /usr/sbin/nologin nextjs
 
 # Copy necessary files
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 

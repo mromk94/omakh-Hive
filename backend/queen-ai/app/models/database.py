@@ -18,6 +18,9 @@ USERS_FILE = DATA_DIR / "users.json"
 OTC_REQUESTS_FILE = DATA_DIR / "otc_requests.json"
 ANALYTICS_FILE = DATA_DIR / "analytics.json"
 SYSTEM_CONFIG_FILE = DATA_DIR / "system_config.json"
+PROPERTIES_FILE = DATA_DIR / "properties.json"
+STAKING_FILE = DATA_DIR / "staking.json"
+SOCIAL_LINKS_FILE = DATA_DIR / "social_links.json"
 
 def load_json(file_path: Path, default: Any = None) -> Any:
     """Load JSON file"""
@@ -279,7 +282,15 @@ def get_system_config() -> Dict:
         'allow_governance': False,
         'maintenance_mode': False,
         'maintenance_message': None,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': datetime.now().isoformat(),
+        # Staking (admin-configurable UI, not on-chain)
+        'staking_apr': 12.0,
+        'staking_lock_days': 90,
+        'staking_terms': 'Staking rewards are variable and subject to change. Early unstake may forfeit rewards.',
+        # Social Links
+        'social_links': {
+            'x': '', 'discord': '', 'instagram': '', 'tiktok': '', 'youtube': ''
+        }
     }
     
     config = load_json(SYSTEM_CONFIG_FILE, default_config)
@@ -330,6 +341,41 @@ def initialize_database():
     
     if not SYSTEM_CONFIG_FILE.exists():
         get_system_config()  # This will create with defaults
+    if not PROPERTIES_FILE.exists():
+        save_json(PROPERTIES_FILE, [])
+
+# ==================== PROPERTIES STORAGE ====================
+
+def list_properties() -> List[Dict]:
+    return load_json(PROPERTIES_FILE, [])
+
+def save_properties(props: List[Dict]):
+    save_json(PROPERTIES_FILE, props)
+
+def upsert_property(prop: Dict) -> Dict:
+    props = list_properties()
+    # if id exists, update; else create with id
+    pid = str(prop.get('id') or '')
+    if pid:
+        for i, p in enumerate(props):
+            if str(p.get('id')) == pid:
+                props[i] = { **p, **prop }
+                save_properties(props)
+                return props[i]
+    # create new
+    new_id = str(len(props) + 1)
+    new_prop = { 'id': new_id, **prop }
+    props.append(new_prop)
+    save_properties(props)
+    return new_prop
+
+def delete_property(prop_id: str) -> bool:
+    props = list_properties()
+    new_props = [p for p in props if str(p.get('id')) != str(prop_id)]
+    if len(new_props) == len(props):
+        return False
+    save_properties(new_props)
+    return True
 
 # Initialize on import
 initialize_database()

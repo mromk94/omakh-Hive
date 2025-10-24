@@ -19,10 +19,14 @@ GOLD='\033[38;5;220m'
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend/queen-ai"
 FRONTEND_DIR="$PROJECT_ROOT/omk-frontend"
+NEW_FRONTEND_DIR="$PROJECT_ROOT/new-frontend"
+LOG_DIR="$PROJECT_ROOT/logs"
+mkdir -p "$LOG_DIR"
 
 # PID files for cleanup
 BACKEND_PID=""
 FRONTEND_PID=""
+NEW_FRONTEND_PID=""
 
 echo ""
 echo -e "${GOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -46,6 +50,17 @@ cleanup() {
         # Kill any remaining processes on port 3001
         lsof -ti:3001 | xargs kill -9 2>/dev/null || true
         echo -e "${GREEN}✅  Frontend stopped${NC}"
+    fi
+
+    # Kill new-frontend (site) and all its children
+    if [ ! -z "$NEW_FRONTEND_PID" ]; then
+        echo -e "${BLUE}🖥️  Stopping New Frontend (PID: $NEW_FRONTEND_PID)...${NC}"
+        pkill -P "$NEW_FRONTEND_PID" 2>/dev/null || true
+        kill -TERM "$NEW_FRONTEND_PID" 2>/dev/null || true
+        wait "$NEW_FRONTEND_PID" 2>/dev/null || true
+        # Kill any remaining processes on port 3000
+        lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+        echo -e "${GREEN}✅  New Frontend stopped${NC}"
     fi
     
     # Kill backend and all its children
@@ -95,10 +110,11 @@ fi
 echo -e "${GREEN}✅  Configuration verified${NC}"
 echo ""
 
-# Kill any existing processes on ports 8001 and 3001
+# Kill any existing processes on ports 8001, 3001 and 3000
 echo -e "${BLUE}🧹  Cleaning up old processes...${NC}"
 lsof -ti:8001 | xargs kill -9 2>/dev/null || true
 lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 echo -e "${GREEN}✅  Cleanup complete${NC}"
 echo ""
 
@@ -158,7 +174,47 @@ done
 
 echo ""
 
-# Start Frontend
+# Start New Frontend (Site)
+echo -e "${GOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GOLD}  🖥️  Starting New Frontend (site)...${NC}"
+echo -e "${GOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+cd "$NEW_FRONTEND_DIR"
+
+# Install dependencies if needed
+if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules/.installed" ]; then
+    echo -e "${YELLOW}📦  Installing npm packages (new-frontend)...${NC}"
+    npm install --silent
+    touch node_modules/.installed
+    echo -e "${GREEN}✅  NPM packages installed (new-frontend)${NC}"
+fi
+
+echo -e "${BLUE}🚀  Launching New Frontend on port 3000...${NC}"
+npm run dev > "$PROJECT_ROOT/logs/new-frontend.log" 2>&1 &
+NEW_FRONTEND_PID=$!
+
+echo -e "${BLUE}⏳  Waiting for New Frontend to initialize...${NC}"
+MAX_ATTEMPTS=30
+ATTEMPT=0
+
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    if curl -s http://localhost:3000 > /dev/null 2>&1; then
+        echo -e "${GREEN}✅  New Frontend is ready!${NC}"
+        break
+    fi
+    ATTEMPT=$((ATTEMPT + 1))
+    if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+        echo -e "${RED}❌  New Frontend failed to start${NC}"
+        echo -e "${YELLOW}📋  Check logs: $PROJECT_ROOT/logs/new-frontend.log${NC}"
+        exit 1
+    fi
+    echo -ne "${YELLOW}   Attempt $ATTEMPT/$MAX_ATTEMPTS...\r${NC}"
+    sleep 1
+done
+
+echo ""
+
+# Start Frontend (Admin)
 echo -e "${GOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GOLD}  📱  Starting Frontend...${NC}"
 echo -e "${GOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -208,7 +264,8 @@ echo -e "${GOLD}         ✅  OMAKH HIVE IS LIVE!  ✅         ${NC}"
 echo -e "${GOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${GREEN}🤖  Queen AI Backend:  ${BLUE}http://localhost:8001${NC}"
-echo -e "${GREEN}📱  Frontend:          ${BLUE}http://localhost:3001${NC}"
+echo -e "${GREEN}📱  Admin (Legacy):     ${BLUE}http://localhost:3001/kingdom${NC}"
+echo -e "${GREEN}🖥️  New Frontend:      ${BLUE}http://localhost:3000${NC}  (Admin via /kingdom)"
 echo ""
 echo -e "${YELLOW}📊  Logs:${NC}"
 echo -e "${BLUE}   Backend:  $PROJECT_ROOT/logs/queen-backend.log${NC}"
@@ -222,7 +279,7 @@ echo ""
 # Open browser (optional)
 if command -v open &> /dev/null; then
     sleep 2
-    open http://localhost:3001
+    open http://localhost:3000
 fi
 
 # Keep script running and wait for signals

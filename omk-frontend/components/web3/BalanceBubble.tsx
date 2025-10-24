@@ -3,25 +3,81 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Settings, RefreshCw, User, LogOut, Copy, Check } from 'lucide-react';
-import { useAccount, useBalance, useDisconnect } from 'wagmi';
+import { useAccount, useBalance, useDisconnect, usePublicClient } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAddress, formatNumber, formatCurrency } from '@/lib/utils';
 import { chatActions } from '@/lib/chatEvents';
+import { ERC20_ABI } from '@/lib/contracts/dispenser';
+import { formatUnits } from 'viem';
 
 export default function BalanceBubble() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [omkBalance, setOmkBalance] = useState<string | null>(null);
   
   const router = useRouter();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
   const { primaryWallet, balances, logout, isConnected: authConnected } = useAuthStore();
+  const publicClient = usePublicClient();
   
   // Get ETH balance
   const { data: ethBalance } = useBalance({
     address: address as `0x${string}`,
   });
+
+  // Load OMK ERC20 balance (if configured)
+  useEffect(() => {
+    const loadOMK = async () => {
+      try {
+        setOmkBalance(null);
+        const omkAddr = (
+          chain?.id === 1
+            ? (process.env.NEXT_PUBLIC_OMK_TOKEN_MAINNET as `0x${string}` | undefined)
+            : chain?.id === 11155111
+            ? (process.env.NEXT_PUBLIC_OMK_TOKEN_SEPOLIA as `0x${string}` | undefined)
+            : (process.env.NEXT_PUBLIC_OMK_TOKEN_ADDRESS as `0x${string}` | undefined)
+        );
+        if (!publicClient || !address || !omkAddr) return;
+        const bal = await publicClient.readContract({
+          address: omkAddr,
+          abi: ERC20_ABI as any,
+          functionName: 'balanceOf',
+          args: [address as `0x${string}`],
+        }) as bigint;
+        setOmkBalance(formatUnits(bal, 18));
+      } catch (e) {
+        setOmkBalance('0');
+      }
+    };
+    loadOMK();
+  }, [publicClient, address, chain?.id]);
+
+  // Listen for global refresh events (e.g., after swaps/purchases)
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const omkAddr = (
+          chain?.id === 1
+            ? (process.env.NEXT_PUBLIC_OMK_TOKEN_MAINNET as `0x${string}` | undefined)
+            : chain?.id === 11155111
+            ? (process.env.NEXT_PUBLIC_OMK_TOKEN_SEPOLIA as `0x${string}` | undefined)
+            : (process.env.NEXT_PUBLIC_OMK_TOKEN_ADDRESS as `0x${string}` | undefined)
+        );
+        if (!publicClient || !address || !omkAddr) return;
+        const bal = await publicClient.readContract({
+          address: omkAddr,
+          abi: ERC20_ABI as any,
+          functionName: 'balanceOf',
+          args: [address as `0x${string}`],
+        }) as bigint;
+        setOmkBalance(formatUnits(bal, 18));
+      } catch {}
+    };
+    window.addEventListener('balances:refresh', handler);
+    return () => window.removeEventListener('balances:refresh', handler);
+  }, [publicClient, address, chain?.id]);
 
   const handleCopyAddress = () => {
     if (address) {
@@ -57,8 +113,8 @@ export default function BalanceBubble() {
     setTimeout(() => chatActions.showSettings(), 300);
   };
 
-  // Only show if BOTH wagmi and auth store confirm connection
-  if (!isConnected || !address || !authConnected) return null;
+  // Show if wallet is connected; auth store enhances but shouldn't block wallet balances in dev
+  if (!isConnected || !address) return null;
 
   // Calculate total portfolio value
   const totalValue = balances.reduce((sum, b) => sum + b.usdValue, 0) + 
@@ -149,7 +205,7 @@ export default function BalanceBubble() {
                   <span className="text-xs text-stone-400">Network</span>
                   <span className="text-sm font-semibold text-stone-100 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    Ethereum Mainnet
+                    {chain?.name || (chain?.id === 1 ? 'Ethereum Mainnet' : chain?.id === 11155111 ? 'Sepolia' : 'Unknown')}
                   </span>
                 </div>
 
@@ -178,7 +234,7 @@ export default function BalanceBubble() {
                     </div>
                   )}
 
-                  {/* OMK Balance (Mock) */}
+                  {/* OMK Balance */}
                   <div className="flex items-center justify-between p-3 bg-yellow-500/5 rounded-lg">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">🟡</span>
@@ -189,10 +245,10 @@ export default function BalanceBubble() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold text-stone-100">
-                        0.00
+                        {omkBalance !== null ? formatNumber(parseFloat(omkBalance || '0'), 4) : '—'}
                       </div>
                       <div className="text-xs text-stone-400">
-                        {formatCurrency(0)}
+                        —
                       </div>
                     </div>
                   </div>

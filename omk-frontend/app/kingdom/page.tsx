@@ -12,7 +12,9 @@ import {
 } from 'lucide-react';
 import { API_ENDPOINTS } from '@/lib/constants';
 import ContractDeployer from './components/ContractDeployer';
+import ContractHealth from './components/ContractHealth';
 import TestnetUtilities from './components/TestnetUtilities';
+import PropertiesManager from './components/PropertiesManager';
 
 export default function KingdomAdminPortal() {
   const router = useRouter();
@@ -188,6 +190,7 @@ export default function KingdomAdminPortal() {
     { id: 'elastic-search', label: 'Elastic Search', icon: Search, badge: 'ELASTIC', category: 'hackathon' },
     { id: 'bigquery', label: 'BigQuery', icon: PieChart, badge: 'BIGQUERY', category: 'hackathon' },
     { id: 'users', label: 'Users', icon: Users, badge: null, category: 'manage' },
+    { id: 'properties', label: 'Properties', icon: Database, badge: null, category: 'manage' },
     { id: 'otc', label: 'OTC', icon: DollarSign, badge: otcPendingCount > 0 ? otcPendingCount.toString() : null, category: 'manage' },
     { id: 'config', label: 'Config', icon: Settings, badge: null, category: 'system' },
     { id: 'contracts', label: 'Contracts', icon: Shield, badge: null, category: 'system' },
@@ -362,13 +365,13 @@ export default function KingdomAdminPortal() {
               </>
             )}
           </div>
-        </div>
-
-        {/* Content */}
+      </div>
+      {/* Content */}
         <div className="space-y-6">
           {activeTab === 'overview' && <OverviewTab onNavigate={setActiveTab} />}
           {activeTab === 'config' && <SystemConfigTab config={systemConfig} onUpdate={loadSystemConfig} />}
           {activeTab === 'users' && <UsersTab />}
+          {activeTab === 'properties' && <PropertiesManager />}
           {activeTab === 'otc' && <OTCManagementTab />}
           {activeTab === 'queen-dev' && <QueenDevelopmentTab />}
           {activeTab === 'system-analysis' && <ClaudeAnalysisTab />}
@@ -377,7 +380,12 @@ export default function KingdomAdminPortal() {
           {activeTab === 'data-pipeline' && <DataPipelineTab />}
           {activeTab === 'elastic-search' && <ElasticSearchTab />}
           {activeTab === 'bigquery' && <BigQueryTab />}
-          {activeTab === 'contracts' && <ContractDeployer />}
+          {activeTab === 'contracts' && (
+            <div className="space-y-6">
+              <ContractHealth />
+              <ContractDeployer />
+            </div>
+          )}
           {activeTab === 'testnet' && <TestnetUtilities />}
         </div>
       </div>
@@ -593,6 +601,20 @@ function SystemConfigTab({ config, onUpdate }: any) {
   const [savingWallets, setSavingWallets] = useState(false);
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false);
   const [savingTGEDate, setSavingTGEDate] = useState(false);
+  // Staking settings
+  const [stakingAPR, setStakingAPR] = useState<number>(config?.staking_apr || config?.staking?.apr || 12);
+  const [stakingLockDays, setStakingLockDays] = useState<number>(config?.staking_lock_days || config?.staking?.lock_days || 90);
+  const [stakingTerms, setStakingTerms] = useState<string>(config?.staking_terms || config?.staking?.terms || '');
+  const [savingStaking, setSavingStaking] = useState(false);
+  // Social links
+  const [socialLinks, setSocialLinks] = useState<any>({
+    x: config?.social_links?.x || '',
+    discord: config?.social_links?.discord || '',
+    instagram: config?.social_links?.instagram || '',
+    tiktok: config?.social_links?.tiktok || '',
+    youtube: config?.social_links?.youtube || ''
+  });
+  const [savingSocial, setSavingSocial] = useState(false);
 
   const handleSaveOTCPhase = async () => {
     setSaving(true);

@@ -1,26 +1,16 @@
 import { HardhatUserConfig } from "hardhat/types";
-import "@nomiclabs/hardhat-ethers";
-import "@nomiclabs/hardhat-etherscan";
-import "hardhat-gas-reporter";
-import "solidity-coverage";
-import "hardhat-deploy";
-import "hardhat-contract-sizer";
-import "hardhat-abi-exporter";
-import "@openzeppelin/hardhat-upgrades";
-import "@typechain/hardhat";
+import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-verify";
+// Temporarily disabled plugins for Hardhat v3 migration
+// import "hardhat-gas-reporter";
+// import "solidity-coverage";
+// import "hardhat-contract-sizer";
+// import "hardhat-abi-exporter";
 import dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
 
-// Extend the HardhatUserConfig type to include namedAccounts
-declare module "hardhat/types/config" {
-  interface HardhatUserConfig {
-    namedAccounts?: {
-      [name: string]: string | number | { [network: string]: null | number | string };
-    };
-  }
-}
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -33,12 +23,31 @@ const config: HardhatUserConfig = {
       viaIR: true,
     },
   },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS === "true",
-    currency: "USD",
-    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
-    token: "ETH",
+  networks: {
+    localhost: {
+      type: "http",
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+    },
+    sepolia: {
+      type: "http",
+      url: process.env.SEPOLIA_RPC_URL || "https://ethereum-sepolia.publicnode.com",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 11155111,
+    },
+    mainnet: {
+      type: "http",
+      url: process.env.MAINNET_RPC_URL || "https://ethereum.publicnode.com",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 1,
+    },
   },
+  // gasReporter: {
+  //   enabled: process.env.REPORT_GAS === "true",
+  //   currency: "USD",
+  //   coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+  //   token: "ETH",
+  // },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
@@ -51,37 +60,7 @@ const config: HardhatUserConfig = {
   mocha: {
     timeout: 40000,
   },
-  namedAccounts: {
-    deployer: {
-      default: 0,
-    },
-    approver1: {
-      default: 1,
-    },
-    approver2: {
-      default: 2,
-    },
-    approver3: {
-      default: 3,
-    },
-  },
-  // @ts-ignore - Hardhat plugin types are not properly recognized
-  contractSizer: {
-    alphaSort: true,
-    disambiguatePaths: false,
-    runOnCompile: true,
-    strict: true,
-  },
-  // @ts-ignore - Hardhat plugin types are not properly recognized
-  abiExporter: {
-    path: "./abis",
-    runOnCompile: true,
-    clear: true,
-    flat: false, // Changed to false to avoid TreasuryVault naming conflict
-    only: [],
-    spacing: 2,
-    pretty: false,
-  },
+  // contractSizer and abiExporter temporarily disabled for v3 upgrade
 };
 
 export default config;

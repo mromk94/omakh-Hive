@@ -20,6 +20,7 @@ import {
   useEstimateGas
 } from 'wagmi';
 import { parseAbi, formatEther, type Hex } from 'viem';
+import { API_ENDPOINTS } from '../../../lib/constants';
 import { sepolia, mainnet } from 'viem/chains';
 
 interface Contract {
@@ -97,7 +98,7 @@ export default function ContractDeployer() {
   const loadContracts = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch('http://localhost:8001/api/v1/admin/contracts', {
+      const response = await fetch(`${API_ENDPOINTS.CONTRACTS}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -123,7 +124,7 @@ export default function ContractDeployer() {
 
   const loadDeployments = async () => {
     try {
-      const response = await fetch('http://localhost:8001/api/v1/admin/contracts/deployments', {
+      const response = await fetch(`${API_ENDPOINTS.CONTRACTS}/deployments`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       const data = await response.json();
@@ -140,7 +141,7 @@ export default function ContractDeployer() {
     
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch('http://localhost:8001/api/v1/admin/contracts/compile', {
+      const response = await fetch(`${API_ENDPOINTS.CONTRACTS}/compile`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -171,7 +172,7 @@ export default function ContractDeployer() {
   const loadContractArtifact = async (contractName: string) => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`http://localhost:8001/api/v1/admin/contracts/${contractName}/artifact`, {
+      const response = await fetch(`${API_ENDPOINTS.CONTRACTS}/${contractName}/artifact`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -257,7 +258,7 @@ export default function ContractDeployer() {
 
     // Save deployment to backend
     try {
-      const response = await fetch('http://localhost:8001/api/v1/admin/contracts/save-deployment', {
+      const response = await fetch(`${API_ENDPOINTS.CONTRACTS}/save-deployment`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,

@@ -93,8 +93,8 @@ contract OMKDispenser is AccessControl, ReentrancyGuard, Pausable {
         maxSwapAmountUSD = 100000 * 10**8; // $100k maximum
         dailyLimitUSD = 500000 * 10**8; // $500k per day per user
 
-        // Default OMK price: $0.10
-        omkPriceUSD = 10 * 10**6; // $0.10 in 8 decimals
+        // Default OMK price: $0.10 (8 decimals)
+        omkPriceUSD = 10 * 10**8; // $0.10 in 8 decimals
     }
 
     // ==================== SWAP FUNCTIONS ====================

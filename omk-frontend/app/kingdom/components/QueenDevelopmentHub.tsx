@@ -8,6 +8,7 @@ import {
   GitBranch, TestTube, Zap, Shield, TrendingUp, Database, Search
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -54,7 +55,7 @@ export default function QueenDevelopmentHub() {
   const loadConversationHistory = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/queen-dev/conversation-history`, {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/conversation-history`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -76,7 +77,7 @@ export default function QueenDevelopmentHub() {
   const loadProposals = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/queen-dev/proposals`, {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/proposals`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -511,7 +512,7 @@ function ProposalDetail({ proposal, onClose, onUpdate }: any) {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const url = `${BACKEND_URL}/api/v1/queen-dev/proposals/${proposal.id}/${action}`;
+      const url = `${API_ENDPOINTS.QUEEN_DEV}/proposals/${proposal.id}/${action}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -544,7 +545,7 @@ function ProposalDetail({ proposal, onClose, onUpdate }: any) {
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(
-        `${BACKEND_URL}/api/v1/admin/proposals/auto-fix/${proposal.id}`,
+        `${API_ENDPOINTS.ADMIN}/proposals/auto-fix/${proposal.id}`,
         {
           method: 'POST',
           headers: {
@@ -834,7 +835,7 @@ function DatabaseQueriesMode() {
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch('http://localhost:8001/api/v1/queen-dev/chat', {
+      const response = await fetch(`${API_ENDPOINTS.QUEEN_DEV}/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

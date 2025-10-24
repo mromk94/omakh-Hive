@@ -134,6 +134,8 @@ class DoubleSubmitCSRFMiddleware(BaseHTTPMiddleware):
         self.exempt_paths = {
             "/api/v1/auth/login",
             "/api/v1/auth/register",
+            "/api/v1/frontend",  # Exempt frontend namespace (MVP local dev)
+            "/api/v1/admin",     # Exempt admin namespace (MVP local dev)
             "/docs",
             "/openapi.json",
             "/health"

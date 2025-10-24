@@ -122,7 +122,7 @@ class BeeManager:
             
             # Provide LLM access to bees that need intelligent reasoning
             if self.llm:
-                llm_enabled_bees = ["logic", "pattern", "governance", "security"]
+                llm_enabled_bees = ["logic", "pattern", "governance", "security", "user_experience"]
                 for bee_name in llm_enabled_bees:
                     if bee_name in self.bees:
                         self.bees[bee_name].llm_enabled = True

@@ -11,6 +11,7 @@ from app.llm.providers.gemini import GeminiProvider
 from app.llm.providers.openai import OpenAIProvider
 from app.llm.providers.anthropic import AnthropicProvider
 from app.llm.memory import ConversationMemory
+from app.llm.persona_loader import get_persona_header
 
 logger = structlog.get_logger(__name__)
 
@@ -145,6 +146,7 @@ class LLMAbstraction:
             
             # Save to memory
             if use_memory:
+                drift_flag = self._detect_drift(response)
                 await self.memory.add_exchange(
                     prompt,
                     response,
@@ -152,6 +154,7 @@ class LLMAbstraction:
                         "provider": provider_name,
                         "temperature": temperature,
                         "context": context,
+                        "drift": drift_flag,
                     }
                 )
             
@@ -246,6 +249,22 @@ class LLMAbstraction:
         
         parts = []
         
+        # Persona header (short) to enforce Personality Gate across providers
+        try:
+            parts.append(get_persona_header() + "\n")
+        except Exception:
+            # Fail open: continue without persona if loader has an issue
+            pass
+        
+        # Role reset if previous turn drifted
+        try:
+            if self.memory.last_drift():
+                parts.append(
+                    "Reminder: You are Queen AI (senior architect). Be concise, cite files/endpoints, propose next actions, and respect safety rules.\n"
+                )
+        except Exception:
+            pass
+        
         # Add context if provided
         if context:
             context_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
@@ -259,11 +278,32 @@ class LLMAbstraction:
                 parts.append(f"Assistant: {exchange['assistant']}")
             parts.append("")
         
+        # Add recent memory nuggets
+        try:
+            nuggets = await self.memory.get_nuggets(limit=3)
+            if nuggets:
+                parts.append("Memory nuggets:")
+                for n in nuggets:
+                    parts.append(f"- {n}")
+                parts.append("")
+        except Exception:
+            pass
+        
         # Add current prompt
         parts.append(f"User: {prompt}")
         parts.append("Assistant:")
         
         return "\n".join(parts)
+
+    def _detect_drift(self, text: str) -> bool:
+        words = len(text.split())
+        bullets = text.count("\n-") + text.count("\n*")
+        long_blocks = sum(1 for p in text.split("\n\n") if len(p.split()) > 120)
+        if words > 250 and bullets == 0:
+            return True
+        if long_blocks >= 2:
+            return True
+        return False
     
     async def _failover_generate(
         self, prompt, context, temperature, max_tokens, failed_provider, use_memory

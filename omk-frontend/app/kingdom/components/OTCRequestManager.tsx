@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle2, XCircle, DollarSign, User, Mail, Wallet, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 interface OTCRequest {
   id: string;
@@ -32,7 +33,7 @@ export default function OTCRequestManager() {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
       const queryParam = filter !== 'all' ? `?status=${filter}` : '';
-      const response = await fetch(`http://localhost:8001/api/v1/admin/otc/requests${queryParam}`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/otc/requests${queryParam}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -63,7 +64,7 @@ export default function OTCRequestManager() {
 
   const handleApprove = async (requestId: string) => {
     try {
-      const response = await fetch(`http://localhost:8001/api/v1/admin/otc/requests/${requestId}/approve`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/otc/requests/${requestId}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -87,7 +88,7 @@ export default function OTCRequestManager() {
     if (!reason) return;
 
     try {
-      const response = await fetch(`http://localhost:8001/api/v1/admin/otc/requests/${requestId}/reject`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/otc/requests/${requestId}/reject`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -7,6 +7,7 @@ import {
   XCircle, TrendingUp, Upload, Calendar, AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -48,7 +49,7 @@ export default function DataPipelineManager() {
   const loadPipelineStatus = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/admin/data-pipeline/status`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/data-pipeline/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -69,7 +70,7 @@ export default function DataPipelineManager() {
 
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/admin/data-pipeline/run`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/data-pipeline/run`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -102,7 +103,7 @@ export default function DataPipelineManager() {
 
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/admin/data-pipeline/schedule`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/data-pipeline/schedule`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,

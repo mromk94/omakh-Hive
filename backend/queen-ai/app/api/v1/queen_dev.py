@@ -10,7 +10,6 @@ from datetime import datetime
 
 from app.core.code_proposal_system import CodeProposalSystem, ProposalStatus
 from app.core.queen_system_manager import QueenSystemManager
-from app.core.enhanced_claude_integration import ThinkingClaude, QueenRegulator
 from app.core.enhanced_sandbox_system import SandboxEnvironment
 from app.core.system_reboot_manager import SystemRebootManager
 from app.integrations.claude_integration import ClaudeQueenIntegration
@@ -85,7 +84,7 @@ async def chat_with_queen(
     admin: bool = Depends(verify_admin)
 ):
     """
-    🛡️ SECURED: Chat with Queen AI (Claude)
+    🛡️ SECURED: Chat with Queen AI (Admin LLM - GPT primary, Gemini fallback)
     Queen can analyze system and propose code changes
     
     Security Gates:
@@ -118,7 +117,7 @@ async def chat_with_queen(
         
         if decision == "BLOCK":
             logger.warning(
-                "🚫 Claude chat input BLOCKED",
+                "🚫 Admin LLM chat input BLOCKED",
                 admin_id=admin_id,
                 risk_score=risk_score,
                 reasoning=security_check.get("reasoning")
@@ -135,7 +134,7 @@ async def chat_with_queen(
         
         elif decision == "QUARANTINE":
             logger.warning(
-                "⚠️ Claude chat input QUARANTINED",
+                "⚠️ Admin LLM chat input QUARANTINED",
                 admin_id=admin_id,
                 risk_score=risk_score
             )
@@ -152,7 +151,7 @@ async def chat_with_queen(
         sanitized_message = security_check.get("sanitized_input")
         
         logger.info(
-            "✅ Claude chat input validated",
+            "✅ Admin LLM chat input validated",
             admin_id=admin_id,
             risk_score=risk_score,
             decision=decision
@@ -200,7 +199,7 @@ async def chat_with_queen(
             
             if not code_validation.get("is_safe"):
                 logger.error(
-                    "🚨 CRITICAL: Malicious code detected in Claude proposal",
+                    "🚨 CRITICAL: Malicious code detected in LLM proposal",
                     admin_id=admin_id,
                     warnings=code_validation.get("warnings")
                 )

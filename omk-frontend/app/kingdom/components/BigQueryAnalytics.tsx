@@ -11,8 +11,11 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
+const PROJECT = process.env.NEXT_PUBLIC_GCP_PROJECT_ID || 'omk-hive';
+const DATASET = process.env.NEXT_PUBLIC_PIPELINE_DATASET || 'fivetran_blockchain_data';
 
 interface QueryResult {
   columns: string[];
@@ -38,13 +41,13 @@ const PREBUILT_QUERIES: PrebuiltQuery[] = [
     color: 'blue',
     query: `
 SELECT 
-  DATE(block_timestamp) as date,
-  AVG(gas_price_gwei) as avg_gas,
-  MAX(gas_price_gwei) as max_gas,
-  MIN(gas_price_gwei) as min_gas,
-  COUNT(*) as tx_count
-FROM \`omk-hive-prod.fivetran_blockchain_data.ethereum_transactions\`
-WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  DATE(TIMESTAMP(timestamp)) AS date,
+  AVG(CAST(gas_price_gwei AS FLOAT64)) AS avg_gas,
+  MAX(CAST(gas_price_gwei AS FLOAT64)) AS max_gas,
+  MIN(CAST(gas_price_gwei AS FLOAT64)) AS min_gas,
+  COUNT(*) AS tx_count
+FROM \`${PROJECT}.${DATASET}.ethereum_transactions\`
+WHERE TIMESTAMP(timestamp) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 GROUP BY date
 ORDER BY date DESC
 LIMIT 7
@@ -61,11 +64,10 @@ SELECT
   pool_address,
   token0_symbol,
   token1_symbol,
-  SUM(total_liquidity_usd) as total_liquidity,
-  dex
-FROM \`omk-hive-prod.fivetran_blockchain_data.dex_pools\`
-WHERE timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
-GROUP BY pool_address, token0_symbol, token1_symbol, dex
+  SUM(CAST(total_liquidity_usd AS FLOAT64)) AS total_liquidity
+FROM \`${PROJECT}.${DATASET}.dex_pools\`
+WHERE TIMESTAMP(timestamp) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
+GROUP BY pool_address, token0_symbol, token1_symbol
 ORDER BY total_liquidity DESC
 LIMIT 10
     `.trim()
@@ -79,31 +81,33 @@ LIMIT 10
     query: `
 SELECT 
   status,
-  COUNT(*) as count,
-  AVG(gas_used) as avg_gas_used
-FROM \`omk-hive-prod.fivetran_blockchain_data.ethereum_transactions\`
-WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+  COUNT(*) AS count,
+  AVG(CAST(gas_price_gwei AS FLOAT64)) AS avg_gas_gwei
+FROM \`${PROJECT}.${DATASET}.ethereum_transactions\`
+WHERE TIMESTAMP(timestamp) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
 GROUP BY status
     `.trim()
   },
   {
     id: 'price_feeds',
     name: 'Oracle Price Feeds',
-    description: 'Latest prices from Chainlink',
+    description: 'Latest prices from Chainlink & Pyth',
     icon: DollarSign,
     color: 'yellow',
     query: `
-SELECT 
-  pair,
-  price,
-  updated_at,
-  round_id
-FROM \`omk-hive-prod.fivetran_blockchain_data.chainlink_prices\`
-WHERE round_id IN (
-  SELECT MAX(round_id)
-  FROM \`omk-hive-prod.fivetran_blockchain_data.chainlink_prices\`
-  GROUP BY pair
+WITH latest AS (
+  SELECT 
+    pair,
+    oracle,
+    CAST(price AS FLOAT64) AS price,
+    feed_address,
+    TIMESTAMP(timestamp) AS ts,
+    ROW_NUMBER() OVER (PARTITION BY pair, oracle ORDER BY TIMESTAMP(timestamp) DESC) AS rn
+  FROM \`${PROJECT}.${DATASET}.oracle_prices\`
 )
+SELECT pair, oracle, price, feed_address, ts AS timestamp
+FROM latest
+WHERE rn = 1
 ORDER BY pair
     `.trim()
   }
@@ -121,7 +125,7 @@ export default function BigQueryAnalytics() {
 
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/admin/bigquery/query`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN}/bigquery/query`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,

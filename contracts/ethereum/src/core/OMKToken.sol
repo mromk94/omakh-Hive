@@ -18,9 +18,9 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     uint256 public constant FOUNDERS_AMOUNT = 250_000_000 * 10**18; // 25%
     uint256 public constant PRIVATE_INVESTORS_AMOUNT = 100_000_000 * 10**18; // 10%
     uint256 public constant ECOSYSTEM_AMOUNT = 100_000_000 * 10**18; // 10%
-    uint256 public constant ADVISORS_AMOUNT = 40_000_000 * 10**18; // 4%
+    uint256 public constant ADVISORS_AMOUNT = 20_000_000 * 10**18; // 2%
     uint256 public constant BREAKSWITCH_AMOUNT = 10_000_000 * 10**18; // 1%
-    uint256 public constant TREASURY_AMOUNT = 100_000_000 * 10**18; // 10%
+    uint256 public constant TREASURY_AMOUNT = 120_000_000 * 10**18; // 10%
     uint256 public constant PUBLIC_ACQUISITION_AMOUNT = 400_000_000 * 10**18; // 40% (immediately available to Queen AI for market operations)
 
     // Roles
@@ -46,8 +46,8 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     mapping(address => bool) public isWhitelisted;
 
     // Queen Safeguards - Rate Limiting
-    uint256 public constant MAX_QUEEN_DAILY_TRANSFER = 10_000_000 * 10**18; // 5% of total supply per day
-    uint256 public constant LARGE_TRANSFER_THRESHOLD = 20_000_000 * 10**18; // 10% of total supply
+    uint256 public constant MAX_QUEEN_DAILY_TRANSFER = 50_000_000 * 10**18; // 5% of total supply per day
+    uint256 public constant LARGE_TRANSFER_THRESHOLD = 100_000_000 * 10**18; // 10% of total supply
     uint256 public lastQueenTransferDay;
     uint256 public todayQueenTransfers;
     bool public queenRateLimitEnabled = true;
@@ -111,6 +111,11 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         // Mint initial supply to the contract
         _mint(address(this), TOTAL_SUPPLY);
 
+        // Whitelist contract and key addresses before distributions
+        isWhitelisted[address(this)] = true;
+        isWhitelisted[queen_] = true;
+        _whitelistImportantAddresses(founders_, advisors_);
+
         // Deploy vesting contracts (excluding private sale - handled separately)
         _deployVestingContracts(admin_, founders_, advisors_);
 
@@ -140,14 +145,14 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         );
         emit VestingContractDeployed(address(foundersVesting), "FOUNDERS");
 
-        // Deploy Advisors vesting (12-month cliff + 18-month linear)
+        // Deploy Advisors vesting (18-month linear, no cliff)
         advisorsVesting = new TokenVesting(address(this), admin_);
         advisorsVesting.createVestingSchedule(
             advisors_,
             ADVISORS_AMOUNT,
-            12, // 12 month cliff
-            30, // 30 months total (12 cliff + 18 vesting)
-            false // Cliff then linear
+            0, // No cliff
+            18, // 18 months total
+            true // Linear vesting
         );
         emit VestingContractDeployed(address(advisorsVesting), "ADVISORS");
 
@@ -246,12 +251,12 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         require(privateSaleContract == address(0), "OMKToken: private sale already set");
         
         privateSaleContract = _privateSaleContract;
-        
+
+        // Whitelist the PrivateSale contract BEFORE transfer to bypass circuit breaker
+        isWhitelisted[_privateSaleContract] = true;
+
         // Transfer 100M OMK tokens to PrivateSale contract
         _transfer(address(this), _privateSaleContract, PRIVATE_INVESTORS_AMOUNT);
-        
-        // Whitelist the PrivateSale contract
-        isWhitelisted[_privateSaleContract] = true;
     }
 
     /**
@@ -382,6 +387,7 @@ contract OMKToken is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         if (circuitBreakerEnabled && 
             from != address(0) && 
             to != address(0) && 
+            from != address(this) &&
             !isWhitelisted[from] && 
             !isWhitelisted[to]) {
             

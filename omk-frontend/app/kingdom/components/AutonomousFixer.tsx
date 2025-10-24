@@ -8,6 +8,7 @@ import {
   Play, RefreshCw, TrendingUp, GitBranch, FileCode
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -39,7 +40,7 @@ export default function AutonomousFixer() {
   const loadActiveFixes = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/autonomous/fixes`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTONOMOUS}/fixes`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -55,7 +56,7 @@ export default function AutonomousFixer() {
   const checkIndexingStatus = async () => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/autonomous/status`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTONOMOUS}/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -72,7 +73,7 @@ export default function AutonomousFixer() {
     try {
       toast.loading('Indexing codebase...');
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/autonomous/index-codebase`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTONOMOUS}/index-codebase`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -107,7 +108,7 @@ export default function AutonomousFixer() {
       toast.loading('Queen is analyzing the bug...', { duration: 5000 });
 
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/autonomous/fix-bug`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTONOMOUS}/fix-bug`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -147,7 +148,7 @@ export default function AutonomousFixer() {
     try {
       toast.loading('Applying fix...');
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/autonomous/fixes/${fixId}/approve`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTONOMOUS}/fixes/${fixId}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -174,7 +175,7 @@ export default function AutonomousFixer() {
   const rejectFix = async (fixId: string) => {
     try {
       const token = localStorage.getItem('auth_token') || 'dev_token';
-      const response = await fetch(`${BACKEND_URL}/api/v1/autonomous/fixes/${fixId}/reject`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTONOMOUS}/fixes/${fixId}/reject`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

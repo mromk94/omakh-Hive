@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     # BigQuery (for learning function - follows google_cloud_strategy.md)
     BIGQUERY_DATASET: str = "omk_hive_learning"
     BIGQUERY_ENABLED: bool = False  # Requires GCP setup
+    # Data pipeline (GCS -> BigQuery dataset for analytics)
+    PIPELINE_BIGQUERY_DATASET: str = "fivetran_blockchain_data"
     
     # Secret Manager (for production credentials)
     SECRET_MANAGER_ENABLED: bool = False
@@ -96,6 +98,9 @@ class Settings(BaseSettings):
     QUEEN_MONITORING_INTERVAL: int = 30  # 30 seconds
     QUEEN_MAX_DAILY_PROPOSALS: int = 100
     QUEEN_PROPOSAL_CONFIDENCE_THRESHOLD: float = 0.75
+    
+    # Personality Gate
+    PERSONA_FILE: Optional[str] = "QUEEN_PERSONALITY.md"
     
     # Bee Management
     BEE_HEALTH_CHECK_INTERVAL: int = 60  # 60 seconds

@@ -7,6 +7,7 @@ import {
   ArrowUp, ArrowDown, Download, Filter, AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_ENDPOINTS } from '../../../lib/constants';
 
 const BACKEND_URL = 'http://localhost:8001';
 
@@ -45,9 +46,9 @@ export default function EnhancedAnalytics() {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [overviewRes, usersRes, txRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/v1/admin/analytics/overview`, { headers }),
-        fetch(`${BACKEND_URL}/api/v1/admin/analytics/users`, { headers }),
-        fetch(`${BACKEND_URL}/api/v1/admin/analytics/transactions`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/analytics/overview`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/analytics/users`, { headers }),
+        fetch(`${API_ENDPOINTS.ADMIN}/analytics/transactions`, { headers }),
       ]);
 
       const [overview, users, transactions] = await Promise.all([
